@@ -1,0 +1,9 @@
+# About
+
+A *top-level* Carve page that lives next to the homepage.
+
+It exercises the `name.crv -> name/index.html` rewrite (directory URLs) and the
+`name.crv -> name.html` rewrite when directory URLs are disabled.
+
+- point one
+- point two

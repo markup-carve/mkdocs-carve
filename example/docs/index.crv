@@ -1,0 +1,13 @@
+# Carve in MkDocs
+
+Welcome to the *mkdocs-carve* example site. This homepage is written in
+/Carve/ and rendered straight into the MkDocs theme.
+
+- Carve supports lists
+- And `inline code`
+- And [links](https://github.com/markup-carve)
+
+| feature | works |
+|---------|-------|
+| tables  | yes   |
+| bold    | yes   |

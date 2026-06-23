@@ -1,0 +1,10 @@
+# Guide Introduction
+
+A Carve page nested in a *subfolder* (`guide/`). This proves nested paths and
+nav entries pointing into folders resolve correctly.
+
+| step | description       |
+|------|-------------------|
+| 1    | install the plugin |
+| 2    | write `.crv` pages |
+| 3    | run `mkdocs build` |

@@ -1,0 +1,11 @@
+site_name: mkdocs-carve example
+plugins:
+  - carve:
+      extensions:
+        - heading_permalinks
+nav:
+  - Home: index.crv
+  - About: about.crv
+  - Guide:
+      - Introduction: guide/intro.crv
+  - Markdown: markdown-page.md

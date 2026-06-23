@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mkdocs-carve"
+version = "0.1.0"
+description = "MkDocs plugin that renders Carve (.crv / .carve) pages via python-carve."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.8"
+authors = [{ name = "markup-carve" }]
+keywords = ["mkdocs", "carve", "markup", "documentation"]
+classifiers = [
+    "Framework :: MkDocs",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Documentation",
+    "Topic :: Text Processing :: Markup",
+]
+dependencies = [
+    "mkdocs>=1.5",
+    "carve @ git+https://github.com/markup-carve/python-carve",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/markup-carve/mkdocs-carve"
+Source = "https://github.com/markup-carve/mkdocs-carve"
+
+[project.entry-points."mkdocs.plugins"]
+carve = "mkdocs_carve.plugin:CarvePlugin"
+
+[tool.setuptools]
+packages = ["mkdocs_carve"]
