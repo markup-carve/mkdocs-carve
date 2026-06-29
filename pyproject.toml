@@ -20,7 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "mkdocs>=1.5",
-    "carve @ git+https://github.com/markup-carve/python-carve",
+    "carve-lang @ git+https://github.com/markup-carve/python-carve",
 ]
 
 [project.optional-dependencies]
