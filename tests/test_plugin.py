@@ -77,7 +77,7 @@ def test_md_file_left_untouched(dirs):
         ("index.crv", "index.html", "./"),
         ("about.crv", "about/index.html", "about/"),
         ("guide/intro.crv", "guide/intro/index.html", "guide/intro/"),
-        ("deep/sub/page.carve", "deep/sub/page/index.html", "deep/sub/page/"),
+        ("deep/sub/page.crv", "deep/sub/page/index.html", "deep/sub/page/"),
     ],
 )
 def test_path_rewrite_directory_urls(dirs, src_uri, expected_dest, expected_url):
@@ -101,7 +101,7 @@ def test_path_rewrite_directory_urls(dirs, src_uri, expected_dest, expected_url)
         ("index.crv", "index.html"),
         ("about.crv", "about.html"),
         ("guide/intro.crv", "guide/intro.html"),
-        ("deep/sub/page.carve", "deep/sub/page.html"),
+        ("deep/sub/page.crv", "deep/sub/page.html"),
     ],
 )
 def test_path_rewrite_flat_urls(dirs, src_uri, expected_dest):
@@ -204,4 +204,4 @@ def test_mixed_tree_only_carve_rewritten(dirs):
 
 
 def test_carve_suffixes_constant():
-    assert ".crv" in CARVE_SUFFIXES and ".carve" in CARVE_SUFFIXES
+    assert ".crv" in CARVE_SUFFIXES and ".carve" not in CARVE_SUFFIXES

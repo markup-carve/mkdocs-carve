@@ -1,4 +1,4 @@
-"""mkdocs-carve: render Carve (`.crv` / `.carve`) pages in MkDocs."""
+"""mkdocs-carve: render Carve (`.crv`) pages in MkDocs."""
 
 from mkdocs_carve.plugin import CARVE_SUFFIXES, CarvePlugin, convert_carve
 

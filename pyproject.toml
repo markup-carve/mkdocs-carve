@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mkdocs-carve"
 version = "0.1.0"
-description = "MkDocs plugin that renders Carve (.crv / .carve) pages via python-carve."
+description = "MkDocs plugin that renders Carve (.crv) pages via python-carve."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.8"

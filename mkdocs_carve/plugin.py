@@ -1,7 +1,7 @@
-"""MkDocs plugin that renders Carve (`.crv` / `.carve`) source files as pages.
+"""MkDocs plugin that renders Carve (`.crv`) source files as pages.
 
 Carve is a lightweight markup language. This plugin teaches MkDocs to treat
-`.crv` and `.carve` files as documentation pages and converts them to HTML via
+`.crv` files as documentation pages and converts them to HTML via
 the `carve` engine (python-carve), so the active MkDocs theme wraps the output
 exactly like a normal Markdown page.
 
@@ -17,7 +17,7 @@ Design notes
   That gives correct output for ``index`` pages, nested folders, ``README``
   files, and both ``use_directory_urls`` modes for free.
 
-* The Carve ``File`` keeps its original ``.crv`` / ``.carve`` ``src_uri``. Nav
+* The Carve ``File`` keeps its original ``.crv`` ``src_uri``. Nav
   entries in ``mkdocs.yml`` are resolved by ``src_uri``, so a ``nav`` line such
   as ``- Guide: guide/intro.crv`` keeps working without translation. Keeping a
   single canonical key per file also avoids the double-build that an aliased
@@ -39,7 +39,7 @@ from mkdocs.config import config_options
 from mkdocs.plugins import BasePlugin
 
 #: Source extensions this plugin claims as Carve documentation pages.
-CARVE_SUFFIXES = (".crv", ".carve")
+CARVE_SUFFIXES = (".crv",)
 
 #: Extensions enabled by default. Permalinks on headings are broadly useful for
 #: documentation sites and are the carve analog of MkDocs' Markdown ``toc``
@@ -85,7 +85,7 @@ def _carve_url(dest_uri: str, use_directory_urls: bool) -> str:
 
 
 class CarvePlugin(BasePlugin):
-    """Render `.crv` / `.carve` pages through the carve engine."""
+    """Render `.crv` pages through the carve engine."""
 
     config_scheme = (
         (
@@ -99,7 +99,7 @@ class CarvePlugin(BasePlugin):
     def on_files(self, files, *, config):
         """Promote Carve source files to documentation pages.
 
-        Each `.crv` / `.carve` ``File`` is marked as a documentation page and
+        Each `.crv` ``File`` is marked as a documentation page and
         has its ``dest_uri`` / ``url`` recomputed using MkDocs' own Markdown
         layout rules, so it slots into the build like any `.md` page.
         """

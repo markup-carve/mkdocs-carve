@@ -1,7 +1,7 @@
 # mkdocs-carve
 
 A [MkDocs](https://www.mkdocs.org/) plugin that renders
-[Carve](https://github.com/markup-carve) (`.crv` / `.carve`) source files as
+[Carve](https://github.com/markup-carve) (`.crv`) source files as
 documentation pages, converting them to HTML with the
 [python-carve](https://github.com/markup-carve/python-carve) engine. Carve pages
 are wrapped by your active MkDocs theme exactly like Markdown pages, and they
@@ -37,7 +37,7 @@ plugins:
   - carve
 ```
 
-Then write pages with a `.crv` (or `.carve`) extension under `docs/` and
+Then write pages with a `.crv` extension under `docs/` and
 reference them in `nav` by their source path:
 
 ```yaml
@@ -90,12 +90,12 @@ Available extension names come from the carve engine
 
 ## How it works
 
-* **`on_files`** promotes each `.crv` / `.carve` file to a documentation page
+* **`on_files`** promotes each `.crv` file to a documentation page
   and recomputes its destination path and URL using the *same* rules MkDocs
   applies to Markdown (driven by the file stem and `use_directory_urls`). This
   handles `index` pages, `README` files, nested folders, and both
   `use_directory_urls: true` and `false` modes without hand-rolled path logic.
-* The Carve file keeps its original `.crv` / `.carve` `src_uri`, so `nav`
+* The Carve file keeps its original `.crv` `src_uri`, so `nav`
   entries that reference `.crv` paths resolve without translation.
 * **`on_page_markdown`** converts the Carve source to an HTML fragment. MkDocs'
   Markdown step passes raw HTML through untouched, so the theme template wraps
