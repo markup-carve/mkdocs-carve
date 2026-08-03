@@ -20,7 +20,17 @@ classifiers = [
 ]
 dependencies = [
     "mkdocs>=1.5",
-    "carve-lang @ git+https://github.com/markup-carve/python-carve",
+    # Pinned to an exact revision, and named by the repository's CURRENT name.
+    #
+    # This had no ref, so it floated on whatever was on the default branch at
+    # install time - two installs a day apart could differ with nothing to read.
+    # There is no registry alternative: carve-py is not on PyPI (carve#499), so
+    # a git dependency is the only option and the ref is what makes it honest.
+    #
+    # The old URL said `python-carve`, which only resolved through GitHub's
+    # rename redirect; that redirect stops working the moment anyone creates a
+    # repository with the old name.
+    "carve-lang @ git+https://github.com/markup-carve/carve-py@31d031ec7704d5dca06d4ecee70fdc45c0e1b7fc",
 ]
 
 [project.optional-dependencies]
