@@ -88,10 +88,12 @@ plugins:
         - list_table
 ```
 
-Available extension names come from the carve engine
-(`python -c "import carve; print(carve.extensions())"`); at the time of writing:
-`autolink`, `details`, `external_links`, `fenced_render`, `heading_permalinks`,
-`list_table`, `math_block`, `spoiler`, `tab_normalize`, `wikilinks`, `citations`.
+Available extension names come from the installed Carve engine, so ask it rather
+than trusting a list in a README that cannot know which engine build you have:
+
+```bash
+python -c "import carve; print(carve.extensions())"
+```
 
 ## How it works
 
