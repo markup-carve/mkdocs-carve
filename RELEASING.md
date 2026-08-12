@@ -1,0 +1,49 @@
+# Releasing
+
+`mkdocs-carve` publishes to PyPI from `.github/workflows/release.yml`, which
+runs on a pushed `v*` tag.
+
+## Blocked until carve-lang is on PyPI
+
+This plugin depends on the Carve engine, which lives in
+[carve-py](https://github.com/markup-carve/carve-py) and is not published yet.
+`pyproject.toml` therefore names it as a git dependency pinned to an exact
+revision.
+
+**PyPI rejects a distribution with a direct-URL dependency**, so this package
+cannot be uploaded while that line exists. The release workflow checks for it
+and fails early rather than letting the tag burn on a rejected upload.
+
+The order is therefore fixed:
+
+1. Release `carve-lang` from carve-py.
+2. Here, replace the git dependency with the released version, e.g.
+   `carve-lang>=0.1.0`.
+3. Release this package.
+
+## One-time setup
+
+1. In the repository settings, create an environment named `pypi`. The publish
+   job is bound to it, so restricting who may approve it also restricts who may
+   release.
+2. Give the first release a credential, either way round:
+   - **Trusted Publishing, no secret.** On PyPI, add a *pending* publisher for
+     the project name `mkdocs-carve`: owner `markup-carve`, repository
+     `mkdocs-carve`, workflow `release.yml`, environment `pypi`.
+   - **API token.** Set `PYPI_API_TOKEN` as a repository secret. A token for a
+     project that does not exist yet has to be account-scoped, because
+     project-scoped tokens cannot be minted first. After the first upload, add a
+     trusted publisher on the now-existing project and
+     `gh secret delete PYPI_API_TOKEN`.
+
+## Per release
+
+1. Move the entries under a version heading in `CHANGELOG.md` and set its date.
+2. Set `project.version` in `pyproject.toml`.
+3. Write `.github/release-notes/<version>.md`.
+4. Tag `vX.Y.Z` and push the tag. The workflow matches `v*` - a bare `0.1.0` tag
+   lands but fires nothing.
+
+Steps 1-3 are all checked by the workflow before anything is uploaded: a
+mismatched version, missing notes, or a surviving git dependency each fail the
+build job.
