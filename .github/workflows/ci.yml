@@ -21,11 +21,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # The `carve` dependency is built from carve-py (a PyO3/Rust
-      # extension) installed from git, so a Rust toolchain is required.
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
       - name: Install
         run: pip install -e ".[test]"
 

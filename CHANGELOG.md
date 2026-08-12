@@ -8,11 +8,12 @@ own.
 
 ## Unreleased
 
-Initial release, not yet published to PyPI. It cannot be published until
-`carve-lang` is on PyPI - see `RELEASING.md`.
+Initial release, not yet published to PyPI.
 
 - Render `.crv` pages as MkDocs documentation pages, alongside Markdown.
 - Enable Carve extensions per site through the plugin's `extensions` config key,
   defaulting to `["heading_permalinks"]`.
-- Pin the Carve engine to an exact revision, so two installs a day apart cannot
-  differ silently.
+- Depend on the released `carve-lang>=0.1.0` from PyPI instead of a git
+  revision. Installing no longer builds the engine from source, so no Rust
+  toolchain is needed - and this package can be published at all, which a
+  direct-URL dependency prevented.

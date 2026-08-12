@@ -3,23 +3,15 @@
 `mkdocs-carve` publishes to PyPI from `.github/workflows/release.yml`, which
 runs on a pushed `v*` tag.
 
-## Blocked until carve-lang is on PyPI
+## The engine dependency
 
-This plugin depends on the Carve engine, which lives in
-[carve-py](https://github.com/markup-carve/carve-py) and is not published yet.
-`pyproject.toml` therefore names it as a git dependency pinned to an exact
-revision.
+This plugin renders through `carve-lang`, the Carve engine. That was a git
+dependency until 2026-08-12, which also made this package unpublishable: PyPI
+refuses a distribution with a direct-URL dependency. `carve-lang` is on PyPI
+now, and `pyproject.toml` depends on a version range.
 
-**PyPI rejects a distribution with a direct-URL dependency**, so this package
-cannot be uploaded while that line exists. The release workflow checks for it
-and fails early rather than letting the tag burn on a rejected upload.
-
-The order is therefore fixed:
-
-1. Release `carve-lang` from carve-py.
-2. Here, replace the git dependency with the released version, e.g.
-   `carve-lang>=0.1.0`.
-3. Release this package.
+The release workflow still checks for a `@ git+` dependency and fails on one, so
+a temporary git pin taken during development cannot reach an upload.
 
 ## One-time setup
 
