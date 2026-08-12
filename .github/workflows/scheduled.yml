@@ -1,0 +1,37 @@
+name: Scheduled suite
+
+# The engine used to be a git dependency pinned to a revision, and a job here
+# reported how far that pin had fallen behind carve-py's main. carve-lang is on
+# PyPI now and this package depends on a version range, so there is no pin to
+# age and nothing for that job to read.
+#
+# What remains worth watching is everything that still floats: carve-lang picks
+# up new releases, and so do mkdocs and the rest of the environment. Push-only
+# CI reports the state of the day someone last touched the repo, which says
+# nothing about what a fresh install does today.
+
+on:
+  schedule:
+    # 05:00 UTC daily, after the engine repos have had a night to settle.
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: pip install -e ".[test]"
+
+      # Printed, not asserted: the point is that a failure below can be read
+      # against the engine version that produced it.
+      - name: Report the resolved engine version
+        run: python -c "import carve; print('carve-lang', carve.__version__)"
+
+      - name: Test
+        run: pytest tests/

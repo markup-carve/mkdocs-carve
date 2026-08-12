@@ -13,24 +13,9 @@ coexist with `.md` pages in the same `docs/` tree.
 pip install mkdocs-carve
 ```
 
-> [!IMPORTANT]
-> The Carve engine (`carve-lang`, from carve-py) is a native extension built with
-> Rust via [maturin](https://www.maturin.rs/). carve-py is **not published to
-> PyPI**, so installing this plugin pulls it from git and **builds a native wheel
-> at install time, which needs a Rust toolchain (`cargo`)**. Install Rust from
-> <https://rustup.rs> if you do not have it. Once carve-py ships a prebuilt wheel
-> on PyPI, no toolchain will be needed.
-
-The dependency is declared as an exact revision, because a git dependency with no
-ref resolves to whatever is on the default branch at install time - and with no
-PyPI release to point at instead, the revision *is* the version:
-
-```
-carve-lang @ git+https://github.com/markup-carve/carve-py@31d031ec7704d5dca06d4ecee70fdc45c0e1b7fc
-```
-
-The `engine-drift` workflow reports daily how far behind carve-py's `main` that
-revision has fallen, and fails if it stops being a real commit on it.
+The Carve engine (`carve-lang`, the PyO3 binding over carve-rs) is installed
+from PyPI as a normal dependency. It ships prebuilt abi3 wheels for Linux, macOS
+and Windows, so no Rust toolchain is needed.
 
 ## Usage
 
