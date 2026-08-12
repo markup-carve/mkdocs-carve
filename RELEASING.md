@@ -40,10 +40,10 @@ The order is therefore fixed:
 
 1. Move the entries under a version heading in `CHANGELOG.md` and set its date.
 2. Set `project.version` in `pyproject.toml`.
-3. Write `.github/release-notes/<version>.md`.
-4. Tag `vX.Y.Z` and push the tag. The workflow matches `v*` - a bare `0.1.0` tag
+3. Tag `vX.Y.Z` and push the tag. The workflow matches `v*` - a bare `0.1.0` tag
    lands but fires nothing.
+4. Write the release notes as a draft release on GitHub and publish it.
 
-Steps 1-3 are all checked by the workflow before anything is uploaded: a
-mismatched version, missing notes, or a surviving git dependency each fail the
-build job.
+Before anything is uploaded the build job checks that the tag matches the
+packaged version and that no direct-URL dependency survives. Both are failures
+you cannot fix after the fact, because PyPI never reuses a version number.

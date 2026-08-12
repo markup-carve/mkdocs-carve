@@ -28,16 +28,6 @@ jobs:
             exit 1
           fi
 
-      # The notes live in the repo, so a rebuilt or deleted release loses
-      # nothing, and a tag cannot outrun them.
-      - name: The release notes exist
-        run: |
-          notes=".github/release-notes/${GITHUB_REF_NAME#v}.md"
-          if [ ! -s "$notes" ]; then
-            echo "no release notes at $notes" >&2
-            exit 1
-          fi
-
       # PyPI refuses a distribution whose dependencies point at a URL, and this
       # package depends on carve-lang from git until carve-py is published. The
       # upload would fail anyway; failing here says why, and says it before the
@@ -111,30 +101,3 @@ jobs:
         with:
           packages-dir: dist/
 
-  github-release:
-    name: Publish the GitHub release
-    runs-on: ubuntu-latest
-    needs: [publish]
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-      # The tag carries a leading v, the notes file does not.
-      - name: Locate the notes
-        id: notes
-        run: echo "path=.github/release-notes/${GITHUB_REF_NAME#v}.md" >> "$GITHUB_OUTPUT"
-
-      # Runs after the PyPI upload, so a release page never advertises a
-      # version the registry does not have.
-      - name: Create the release
-        uses: softprops/action-gh-release@v2
-        with:
-          body_path: ${{ steps.notes.outputs.path }}
-          files: dist/*
-          make_latest: true
