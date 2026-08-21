@@ -11,3 +11,5 @@ Welcome to the *mkdocs-carve* example site. This homepage is written in
 |---------|-------|
 | tables  | yes   |
 | bold    | yes   |
+
+Symbols resolve too: a page is a :crv: file, and yes it renders :smile:.

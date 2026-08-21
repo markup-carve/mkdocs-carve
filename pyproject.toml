@@ -32,14 +32,26 @@ dependencies = [
     # since PyPI refuses a distribution with a direct-URL dependency.
     #
     # carve-lang 0.1.0 was published on 2026-08-12, so the pin is a version
-    # range now. The floor is the first release; there is no upper bound
-    # because the engine's Python surface is additive so far and a cap would
-    # have to be maintained by hand.
-    "carve-lang>=0.1.0",
+    # range now. There is no upper bound because the engine's Python surface is
+    # additive so far and a cap would have to be maintained by hand.
+    #
+    # The floor is 0.1.1, not the first release: 0.1.0 renders
+    # `srcset="safe.png 1x, javascript:alert(1) 2x"` unsanitized, because a
+    # list-valued URL attribute was probed only on its first entry. 0.1.1
+    # carries the fix - measured against both, see tests/test_engine_floor.py.
+    "carve-lang>=0.1.1",
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=7"]
+test = [
+    "pytest>=7",
+    # The emoji names the `emoji` setting resolves come from `pymdownx.emoji`,
+    # which is what a Material for MkDocs site's Markdown pages already use.
+    # It is not a runtime dependency - a site that leaves `emoji` at `none`
+    # never asks for a name table - but the example site turns it on, so the
+    # end-to-end build test needs it.
+    "pymdown-extensions>=10",
+]
 
 [project.urls]
 Homepage = "https://github.com/markup-carve/mkdocs-carve"
