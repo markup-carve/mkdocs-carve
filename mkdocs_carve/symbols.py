@@ -40,10 +40,14 @@ that ships as an installed package. The resolution happens once, in
 
 from __future__ import annotations
 
+import functools
 import inspect
+import logging
 from typing import Any, Callable, Mapping, Optional
 
 __all__ = ["CDN", "MODES", "SymbolError", "emoji_map", "build"]
+
+log = logging.getLogger(f"mkdocs.plugins.{__name__}")
 
 CDN = "https://cdn.jsdelivr.net/gh/jdecked/twemoji@16.0.1/assets/svg/"
 """Fallback only - the value is read from `pymdownx.emoji` when it is there."""
@@ -92,6 +96,40 @@ def _default_index() -> Optional[Callable[..., Mapping[str, Any]]]:
     return twemoji
 
 
+@functools.lru_cache(maxsize=1)
+def _markdown() -> Any:
+    """A Markdown instance to hand the index factory as its second argument.
+
+    `pymdownx` calls ``index(self.options, self.md)``, so an index is entitled
+    to touch that argument. There is no Markdown instance in a Carve render -
+    the whole point of a `.crv` page is that Markdown never runs - so a bare
+    one stands in. `markdown` is a hard dependency of MkDocs, so it is always
+    importable; an empty mapping here used to be a `TypeError` waiting for the
+    first index that looked at it.
+    """
+    try:
+        import markdown
+    except ImportError:  # pragma: no cover - markdown ships with mkdocs
+        return None
+    return markdown.Markdown()
+
+
+def _invoke(
+    factory: Callable[..., Mapping[str, Any]],
+    options: Optional[Mapping[str, Any]],
+) -> tuple[Mapping[str, Any], Mapping[str, str]]:
+    try:
+        # A zero-argument factory is `pymdownx`'s deprecated legacy form, and
+        # it still calls those without arguments rather than failing.
+        arity = len(inspect.getfullargspec(factory).args)
+        built = factory(dict(options or {}), _markdown()) if arity else factory()
+    except Exception as error:
+        raise SymbolError(f"the emoji index could not be built: {error}") from error
+    if not isinstance(built, Mapping):
+        raise SymbolError("the emoji index did not return a mapping")
+    return built.get("emoji") or {}, built.get("aliases") or {}
+
+
 def _database(
     index: Optional[Callable[..., Mapping[str, Any]]],
     options: Optional[Mapping[str, Any]],
@@ -105,25 +143,29 @@ def _database(
     on the same site get - Material's index reads its custom-icon paths from
     there - which is the one thing this module exists to prevent.
 
-    ``md`` has no counterpart here: there is no Markdown instance in a Carve
-    render, so an empty mapping stands in. Every index shipped by `pymdownx`
-    and by Material ignores it.
+    A SITE-CONFIGURED index that will not build falls back to the stock table
+    with a warning rather than failing the build. The setting belongs to
+    another extension and was not written for this plugin, so an index that
+    depends on Markdown state a Carve render does not have should cost the
+    site its extra names, not its build. `mkdocs build --strict` turns the
+    warning into the hard failure for sites that would rather stop.
     """
     factory = index if index is not None else _default_index()
     if factory is None:
         return {}, {}
     try:
-        # A zero-argument factory is `pymdownx`'s deprecated legacy form, and
-        # it still calls those without arguments rather than failing.
-        arity = len(inspect.getfullargspec(factory).args)
-        built = factory(dict(options or {}), {}) if arity else factory()
-    except SymbolError:
-        raise
-    except Exception as error:  # pragma: no cover - a database that will not load
-        raise SymbolError(f"the emoji index could not be built: {error}") from error
-    if not isinstance(built, Mapping):  # pragma: no cover - a hostile index
-        raise SymbolError("the emoji index did not return a mapping")
-    return built.get("emoji") or {}, built.get("aliases") or {}
+        return _invoke(factory, options)
+    except SymbolError as error:
+        fallback = _default_index()
+        if index is None or fallback is None or fallback is factory:
+            raise
+        log.warning(
+            "carve: the site's pymdownx.emoji index could not be used (%s); "
+            "falling back to the stock emoji table, so a Carve page may "
+            "resolve fewer names than a Markdown page on this site",
+            error,
+        )
+        return _invoke(fallback, None)
 
 
 _CACHE: dict[Any, dict[str, str]] = {}

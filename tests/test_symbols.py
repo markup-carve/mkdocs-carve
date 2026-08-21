@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 import carve
+from mkdocs_carve import symbols
 from mkdocs_carve.symbols import MODES, SymbolError, build, emoji_map
 
 # A stand-in for `pymdownx.emoji.twemoji`: same call shape, same three keys,
@@ -185,3 +186,38 @@ def test_editing_the_returned_map_does_not_edit_the_cached_one():
     first = emoji_map("unicode", _index)
     first["smile"] = "MUTATED"
     assert emoji_map("unicode", _index)["smile"] == "\U0001f604"
+
+
+def test_an_index_that_reads_its_markdown_argument_still_works():
+    """`pymdownx` hands the factory a Markdown instance; it may touch it."""
+
+    def picky_index(_options, md):
+        # An empty mapping here raised AttributeError and took the build down.
+        assert md.treeprocessors is not None
+        return {"name": "p", "emoji": {":x:": {"unicode": "1f604"}}, "aliases": {}}
+
+    assert emoji_map("unicode", picky_index)["x"] == "\U0001f604"
+
+
+def test_a_site_index_that_will_not_build_falls_back_with_a_warning(caplog):
+    """It belongs to another extension; it should not cost the site its build."""
+
+    def broken_index(_options, _md):
+        raise RuntimeError("needs state a Carve render does not have")
+
+    with caplog.at_level("WARNING"):
+        table = emoji_map("unicode", broken_index)
+    assert table["smile"] == "\U0001f604"  # the stock table
+    assert "falling back to the stock emoji table" in caplog.text
+
+
+def test_the_stock_index_failing_is_still_an_error(monkeypatch):
+    """Nothing to fall back TO - that one has to be reported, not swallowed."""
+
+    def raising_index(_options, _md):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(symbols, "_default_index", lambda: raising_index)
+    symbols._CACHE.clear()
+    with pytest.raises(SymbolError, match="could not be built"):
+        emoji_map("unicode")
