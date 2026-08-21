@@ -9,6 +9,13 @@ name: Scheduled suite
 # up new releases, and so do mkdocs and the rest of the environment. Push-only
 # CI reports the state of the day someone last touched the repo, which says
 # nothing about what a fresh install does today.
+#
+# This job therefore installs UNCONSTRAINED, on purpose. Per-PR CI installs under
+# `constraints-ci.txt` so a green run stays green and states the engine behind
+# its result; this run is the other half of that split - the one that meets a new
+# engine release first, a day after it publishes rather than whenever someone
+# next opens a pull request. Adding the constraint here would blind exactly the
+# run whose job is to see the drift.
 
 on:
   schedule:
