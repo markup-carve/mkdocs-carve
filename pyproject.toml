@@ -43,7 +43,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=7"]
+test = [
+    "pytest>=7",
+    # The emoji names the `emoji` setting resolves come from `pymdownx.emoji`,
+    # which is what a Material for MkDocs site's Markdown pages already use.
+    # It is not a runtime dependency - a site that leaves `emoji` at `none`
+    # never asks for a name table - but the example site turns it on, so the
+    # end-to-end build test needs it.
+    "pymdown-extensions>=10",
+]
 
 [project.urls]
 Homepage = "https://github.com/markup-carve/mkdocs-carve"

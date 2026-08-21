@@ -17,6 +17,12 @@ Prepared as 0.1.0. Releasing is the maintainer's call.
   Installing no longer builds the engine from source, so no Rust toolchain is
   needed - and this package can be published at all, which a direct-URL
   dependency prevented.
+- Forward a symbol map to the engine, so `:smile:` need not render as literal
+  text. New `emoji` (`none`/`unicode`/`twemoji`, read from the emoji database
+  the site's Markdown pages already use) and `symbols` (an inline mapping, or a
+  path to a JSON file) config keys. Mapped values are emitted RAW, so the map is
+  read only from `mkdocs.yml` and a JSON path named there - never from page
+  content. markup-carve/mkdocs-carve#8
 - Report when the engine floor can be raised: a probe that stays quiet while the
   newest published engine is vulnerable and fails the day a patched one appears.
 - Raise the engine floor to `carve-lang>=0.1.1`. 0.1.0 renders

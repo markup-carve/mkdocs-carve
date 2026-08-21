@@ -116,3 +116,16 @@ def test_flat_content_and_nav(site_dir_flat):
     assert 'href="guide/intro.html"' in html
     about = _read(site_dir_flat, "about.html")
     assert "About" in about
+
+
+def test_symbols_resolve_in_a_real_build(site_dir_dirurls):
+    """The example site's `symbols: symbols.json` and `emoji: unicode`.
+
+    The file form is the one worth building for real: its path is resolved
+    relative to `mkdocs.yml`, which no unit test can prove is the path MkDocs
+    actually hands over.
+    """
+    html = _read(site_dir_dirurls, "index.html")
+    assert '<abbr title="Carve">CRV</abbr>' in html
+    assert "\U0001f604" in html  # :smile:, through the emoji database
+    assert ":crv:" not in html  # nothing left literal

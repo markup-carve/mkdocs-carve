@@ -3,6 +3,13 @@ plugins:
   - carve:
       extensions:
         - heading_permalinks
+      # `:smile:` resolves through the same emoji database this site's
+      # Markdown pages use, so the two page types cannot drift apart.
+      emoji: unicode
+      # The site's own symbols, kept in a file beside this one rather than
+      # inline. Both forms are accepted; a long map inline hides the rest of
+      # the configuration.
+      symbols: symbols.json
 nav:
   - Home: index.crv
   - About: about.crv

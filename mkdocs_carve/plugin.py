@@ -27,16 +27,28 @@ Design notes
   HTML through untouched, so returning the converted Carve fragment there lets
   the theme template wrap it. This is simpler than synthesizing a custom page
   and renders identically through every theme.
+
+* The symbol map that turns `:smile:` into an emoji is resolved once, in
+  ``on_config``, and never per page. That is a cost decision - the emoji table
+  has thousands of entries - but it is also the security boundary: a map
+  built before any page exists cannot have been influenced by page content.
+  See ``mkdocs_carve.symbols`` for why that matters (the values are emitted
+  RAW).
 """
 
 from __future__ import annotations
 
+import json
+import os
 import posixpath
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import carve
 from mkdocs.config import config_options
+from mkdocs.config.base import ValidationError
 from mkdocs.plugins import BasePlugin
+
+from mkdocs_carve import symbols as symbols_module
 
 #: Source extensions this plugin claims as Carve documentation pages.
 CARVE_SUFFIXES = (".crv",)
@@ -47,13 +59,22 @@ CARVE_SUFFIXES = (".crv",)
 DEFAULT_EXTENSIONS = ["heading_permalinks"]
 
 
-def convert_carve(source: str, extensions: Optional[list] = None) -> str:
+def convert_carve(
+    source: str,
+    extensions: Optional[list] = None,
+    symbols: Optional[Dict[str, str]] = None,
+) -> str:
     """Convert a Carve source string into an HTML fragment.
 
     ``extensions`` is the list of carve extension names to enable (passed
     straight through to ``carve.to_html``). ``None`` means the core renderer.
+
+    ``symbols`` maps a `:name:` symbol to what it renders as. ``None`` leaves
+    the engine's own default behavior, under which every `:name:` stays
+    literal. Values are emitted RAW by the engine and must therefore come from
+    the site's own configuration - see ``mkdocs_carve.symbols``.
     """
-    return carve.to_html(source, extensions=extensions)
+    return carve.to_html(source, extensions=extensions, symbols=symbols)
 
 
 def _is_carve_path(src_uri: str) -> bool:
@@ -94,7 +115,87 @@ class CarvePlugin(BasePlugin):
                 config_options.Type(str), default=list(DEFAULT_EXTENSIONS)
             ),
         ),
+        # Off by default: a bundled table would decide for the site what
+        # `:smile:` means, and a site that has not asked for emoji should get
+        # the engine's own behavior unchanged.
+        ("emoji", config_options.Choice(symbols_module.MODES, default="none")),
+        # Either the mapping itself, or a path to a JSON file holding one. The
+        # file form exists because a project's own symbols are usually a long
+        # list, and a long list in the middle of `mkdocs.yml` hides everything
+        # after it.
+        ("symbols", config_options.Type((dict, str), default=None)),
     )
+
+    #: Resolved in ``on_config`` and reused for every page. ``None`` means
+    #: "pass nothing", which is not the same as an empty map.
+    _symbols: Optional[Dict[str, str]] = None
+
+    def on_config(self, config):
+        """Resolve the symbol map once, before any page is rendered.
+
+        Doing this here rather than per page is what makes the trust boundary
+        checkable: the only inputs are `mkdocs.yml`, a JSON file it names, and
+        an installed emoji database. No page has been read yet, so no page can
+        have contributed a value - which matters because the engine emits
+        these values RAW.
+        """
+        extra = self._read_symbols(self.config.get("symbols"), config)
+        try:
+            self._symbols = symbols_module.build(
+                self.config["emoji"], extra, self._site_emoji_index(config)
+            )
+        except symbols_module.SymbolError as error:
+            raise ValidationError(str(error)) from error
+        return config
+
+    @staticmethod
+    def _site_emoji_index(config: Any) -> Optional[Any]:
+        """The emoji index this site's MARKDOWN pages use, when it set one.
+
+        Material for MkDocs points `pymdownx.emoji` at its own extended index,
+        so a site on Material resolves more names in a `.md` page than the
+        stock table holds. Reading the same setting here is the whole point of
+        not bundling a table: the two page types resolve `:name:` through one
+        database or they drift.
+
+        Anything unexpected in that setting falls back to the stock table
+        rather than failing the build - the setting belongs to another
+        extension, and this plugin is not the right place to validate it.
+        """
+        try:
+            configured = config["mdx_configs"]["pymdownx.emoji"]["emoji_index"]
+        except (KeyError, TypeError):
+            return None
+        return configured if callable(configured) else None
+
+    @staticmethod
+    def _read_symbols(raw: Any, config: Any) -> Optional[Dict[str, str]]:
+        """The `symbols` setting, with the file form read from disk."""
+        if raw is None or raw == "" or raw == {}:
+            return None
+
+        if isinstance(raw, str):
+            # Relative to `mkdocs.yml`, the file the path was written in -
+            # never to `docs_dir`, so a symbol map can never be mistaken for
+            # page content and shipped into the built site.
+            base = os.path.dirname(os.path.abspath(config["config_file_path"] or "."))
+            path = os.path.join(base, raw)
+            try:
+                with open(path, encoding="utf-8") as handle:
+                    data = json.load(handle)
+            except OSError as error:
+                raise ValidationError(f"symbols: {raw}: {error}") from error
+            except json.JSONDecodeError as error:
+                raise ValidationError(f"symbols: {raw}: {error}") from error
+        else:
+            data = raw
+
+        if not isinstance(data, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in data.items()
+        ):
+            where = f"symbols: {raw}" if isinstance(raw, str) else "symbols"
+            raise ValidationError(f"{where}: must map a name to a string")
+        return dict(data)
 
     def on_files(self, files, *, config):
         """Promote Carve source files to documentation pages.
@@ -132,4 +233,4 @@ class CarvePlugin(BasePlugin):
         if not _is_carve_path(src_uri):
             return markdown
         extensions = self.config["extensions"] or None
-        return convert_carve(markdown, extensions=extensions)
+        return convert_carve(markdown, extensions=extensions, symbols=self._symbols)
