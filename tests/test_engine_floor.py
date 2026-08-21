@@ -1,44 +1,28 @@
 """Whether the engine this plugin RESOLVES carries the 0.1.3 security fix.
 
-The dependency is ``carve-lang>=0.1.0``, an open floor, so what gets installed
-is whatever PyPI serves as latest. That is not a detail this repository can
-read off its own manifest: `pyproject.toml` looks current either way, and every
+The dependency is a floor with no upper bound, so what gets installed is
+whatever PyPI serves as latest. That is not a detail this repository can read
+off its own manifest: `pyproject.toml` looks current either way, and every
 other test here passes against a vulnerable engine exactly as well as against a
 patched one - 25 of 25 did, which is what prompted this file.
 
 The defect is Carve 0.1.3's: a list-valued URL attribute was probed only on its
 FIRST entry, so a payload in the second one was never sanitized.
 
-This is an ``xfail(strict=True)`` rather than a plain assertion, and the
-strictness is the entire point:
-
-    while PyPI's newest carve-lang is vulnerable   -> xfail, the suite stays green
-    the day a patched carve-lang is published      -> XPASS, and strict turns
-                                                      that into a FAILURE
-
-So the check does not hold this repository red for a fix it cannot make, and it
-cannot go quiet either: it reports the moment the floor can be raised, which is
-the moment this plugin can be released. Raise the floor in `pyproject.toml`,
-then delete the marker below and keep the assertion.
+This began life as an ``xfail(strict=True)``, quiet while PyPI's newest
+carve-lang was vulnerable and failing the day a patched one appeared. That day
+came: carve-lang 0.1.1 sanitizes the case, the floor in `pyproject.toml` moved
+to it, and the marker is gone. The assertion stays, because the floor is still
+open at the top and a future engine could regress it.
 """
 
 from __future__ import annotations
-
-import pytest
 
 import carve
 
 PAYLOAD = '![x](safe.png){srcset="safe.png 1x, javascript:alert(1) 2x"}\n'
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "carve-lang on PyPI is 0.1.0, published 2026-08-12, which predates the "
-        "Carve 0.1.3 security release. When this XPASSes, a patched carve-lang "
-        "is available: raise the floor in pyproject.toml and drop this marker."
-    ),
-)
 def test_the_resolved_engine_sanitizes_list_valued_url_attributes():
     html = carve.to_html(PAYLOAD)
     assert "javascript:" not in html.lower(), (

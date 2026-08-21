@@ -135,7 +135,10 @@ def test_convert_carve_core_output():
 def test_convert_carve_table():
     html = convert_carve("| a | b |\n|---|---|\n| 1 | 2 |\n")
     assert "<table>" in html
-    assert "<th>a</th>" in html
+    # Match the cell content, not the engine's exact attribute list: 0.1.1
+    # added `scope="col"` to header cells, and the plugin does not own that
+    # markup - pinning it turns an engine improvement into a plugin failure.
+    assert ">a</th>" in html
 
 
 # --- 6. Extension passthrough changes output --------------------------------
