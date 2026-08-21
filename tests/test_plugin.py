@@ -402,3 +402,15 @@ def test_the_sites_emoji_index_options_are_forwarded():
     )
     assert seen["options"] == {"custom_icons": ["overrides/.icons"]}
     assert plugin._symbols == {"x": "\U0001f600"}
+
+
+def test_a_symbol_file_resolves_from_the_cwd_when_there_is_no_config_file(
+    tmp_path, monkeypatch
+):
+    """A config assembled in memory has no `mkdocs.yml` to be relative to."""
+    (tmp_path / "symbols.json").write_text('{"a": "A"}', encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    plugin = CarvePlugin()
+    plugin.load_config({"symbols": "symbols.json"})
+    plugin.on_config({"config_file_path": None})
+    assert plugin._symbols == {"a": "A"}

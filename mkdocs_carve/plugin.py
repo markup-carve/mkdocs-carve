@@ -188,7 +188,12 @@ class CarvePlugin(BasePlugin):
             # Relative to `mkdocs.yml`, the file the path was written in -
             # never to `docs_dir`, so a symbol map can never be mistaken for
             # page content and shipped into the built site.
-            base = os.path.dirname(os.path.abspath(config["config_file_path"] or "."))
+            #
+            # A config assembled in memory has no file, and then the working
+            # directory IS the base. Deriving it from `dirname(abspath("."))`
+            # would land one directory ABOVE the working directory instead.
+            config_file = config.get("config_file_path") if hasattr(config, "get") else None
+            base = os.path.dirname(os.path.abspath(config_file)) if config_file else os.getcwd()
             path = os.path.join(base, raw)
             try:
                 with open(path, encoding="utf-8") as handle:
