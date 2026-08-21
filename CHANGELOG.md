@@ -29,3 +29,6 @@ Prepared as 0.1.0. Releasing is the maintainer's call.
   `srcset="safe.png 1x, javascript:alert(1) 2x"` unsanitized (Carve 0.1.3's
   list-valued URL attribute defect); 0.1.1 carries the fix, which is what the
   probe above reported.
+- Bound the engine dependency at `carve-lang>=0.1.1,<0.2.0`. On the engine's own
+  0.x scheme `0.1` is the major, so the previous open range admitted breaking
+  releases by the engine's own rules. markup-carve/mkdocs-carve#10
