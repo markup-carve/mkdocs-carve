@@ -140,16 +140,17 @@ class CarvePlugin(BasePlugin):
         these values RAW.
         """
         extra = self._read_symbols(self.config.get("symbols"), config)
+        index, options = self._site_emoji_index(config)
         try:
             self._symbols = symbols_module.build(
-                self.config["emoji"], extra, self._site_emoji_index(config)
+                self.config["emoji"], extra, index, options
             )
         except symbols_module.SymbolError as error:
             raise ValidationError(str(error)) from error
         return config
 
     @staticmethod
-    def _site_emoji_index(config: Any) -> Optional[Any]:
+    def _site_emoji_index(config: Any) -> tuple[Optional[Any], Optional[dict]]:
         """The emoji index this site's MARKDOWN pages use, when it set one.
 
         Material for MkDocs points `pymdownx.emoji` at its own extended index,
@@ -158,15 +159,24 @@ class CarvePlugin(BasePlugin):
         not bundling a table: the two page types resolve `:name:` through one
         database or they drift.
 
-        Anything unexpected in that setting falls back to the stock table
-        rather than failing the build - the setting belongs to another
-        extension, and this plugin is not the right place to validate it.
+        The `options` sub-key comes along with it, because that is what
+        `pymdownx` passes the factory - Material reads its custom-icon paths
+        from there, so an index called without them builds a different table
+        than the Markdown pages get.
+
+        Anything unexpected in either setting falls back rather than failing
+        the build: they belong to another extension, and this plugin is not
+        the right place to validate them.
         """
         try:
-            configured = config["mdx_configs"]["pymdownx.emoji"]["emoji_index"]
+            emoji_config = config["mdx_configs"]["pymdownx.emoji"]
+            configured = emoji_config["emoji_index"]
         except (KeyError, TypeError):
-            return None
-        return configured if callable(configured) else None
+            return None, None
+        if not callable(configured):
+            return None, None
+        options = emoji_config.get("options") if hasattr(emoji_config, "get") else None
+        return configured, options if isinstance(options, dict) else None
 
     @staticmethod
     def _read_symbols(raw: Any, config: Any) -> Optional[Dict[str, str]]:

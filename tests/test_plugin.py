@@ -377,3 +377,28 @@ def test_a_non_callable_emoji_index_falls_back_rather_than_failing():
         }
     )
     assert "\U0001f604" in plugin._symbols["smile"]
+
+
+def test_the_sites_emoji_index_options_are_forwarded():
+    """`pymdownx` hands the factory `config["options"]`; so must this."""
+    seen = {}
+
+    def recording_index(options, _md):
+        seen["options"] = options
+        return {"name": "r", "emoji": {":x:": {"unicode": "1f600"}}, "aliases": {}}
+
+    plugin = CarvePlugin()
+    plugin.load_config({"emoji": "unicode"})
+    plugin.on_config(
+        {
+            "config_file_path": "mkdocs.yml",
+            "mdx_configs": {
+                "pymdownx.emoji": {
+                    "emoji_index": recording_index,
+                    "options": {"custom_icons": ["overrides/.icons"]},
+                }
+            },
+        }
+    )
+    assert seen["options"] == {"custom_icons": ["overrides/.icons"]}
+    assert plugin._symbols == {"x": "\U0001f600"}

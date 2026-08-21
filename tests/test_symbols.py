@@ -141,3 +141,47 @@ def test_a_mapped_value_is_emitted_raw():
     html = carve.to_html(":logo: x", symbols={"logo": "<img src='/l.svg'>"})
     assert "<img src='/l.svg'>" in html
     assert "&lt;img" not in html
+
+
+# --- 5. The index factory is called the way pymdownx calls it ---------------
+
+
+def test_the_sites_index_options_reach_the_factory():
+    """`pymdownx` calls `index(config["options"], md)`; Material reads them.
+
+    Dropping the options silently builds a different table than the Markdown
+    pages on the same site get, which is exactly the drift this module exists
+    to prevent.
+    """
+    seen = {}
+
+    def recording_index(options, _md):
+        seen["options"] = options
+        return {"name": "r", "emoji": {":x:": {"unicode": "1f604"}}, "aliases": {}}
+
+    emoji_map("unicode", recording_index, {"custom_icons": ["overrides/.icons"]})
+    assert seen["options"] == {"custom_icons": ["overrides/.icons"]}
+
+
+def test_two_option_sets_do_not_share_one_cached_table():
+    def index(options, _md):
+        point = "1f604" if options.get("set") == "a" else "1f44d"
+        return {"name": "v", "emoji": {":x:": {"unicode": point}}, "aliases": {}}
+
+    assert emoji_map("unicode", index, {"set": "a"})["x"] == "\U0001f604"
+    assert emoji_map("unicode", index, {"set": "b"})["x"] == "\U0001f44d"
+
+
+def test_a_legacy_zero_argument_index_is_still_called():
+    """`pymdownx` still supports (and deprecation-warns about) this form."""
+
+    def legacy():
+        return {"name": "l", "emoji": {":x:": {"unicode": "1f604"}}, "aliases": {}}
+
+    assert emoji_map("unicode", legacy)["x"] == "\U0001f604"
+
+
+def test_editing_the_returned_map_does_not_edit_the_cached_one():
+    first = emoji_map("unicode", _index)
+    first["smile"] = "MUTATED"
+    assert emoji_map("unicode", _index)["smile"] == "\U0001f604"

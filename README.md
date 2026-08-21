@@ -92,8 +92,10 @@ name renders as is a render option. Without a map, `:smile:` renders as the text
 come from `pymdownx.emoji`, which is the same database your site's Markdown
 pages resolve `:smile:` through (Material for MkDocs enables it by default). One
 source means a `:smile:` in `page.md` and a `:smile:` in `page.crv` cannot drift
-apart. If your site configures its own `emoji_index` under `markdown_extensions`,
-that index is used instead.
+apart. If your site configures its own `emoji_index` under `markdown_extensions`
+- Material for MkDocs does - that index is used instead, together with the
+`options` it is configured with, so a custom icon set resolves on both page
+types.
 
 ```yaml
 plugins:

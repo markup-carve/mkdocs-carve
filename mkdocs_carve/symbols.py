@@ -40,7 +40,7 @@ that ships as an installed package. The resolution happens once, in
 
 from __future__ import annotations
 
-import functools
+import inspect
 from typing import Any, Callable, Mapping, Optional
 
 __all__ = ["CDN", "MODES", "SymbolError", "emoji_map", "build"]
@@ -92,25 +92,58 @@ def _default_index() -> Optional[Callable[..., Mapping[str, Any]]]:
     return twemoji
 
 
-@functools.lru_cache(maxsize=8)
 def _database(
     index: Optional[Callable[..., Mapping[str, Any]]],
+    options: Optional[Mapping[str, Any]],
 ) -> tuple[Mapping[str, Any], Mapping[str, str]]:
     """The `(emoji, aliases)` pair an index factory produces.
 
-    Cached on the factory itself, which is what keeps the 3840-entry table
-    from being rebuilt for every page of a site.
+    ``options`` is the `options` sub-key of the site's `pymdownx.emoji`
+    configuration, which is exactly what `pymdownx` itself hands the factory
+    (`EmojiPattern._set_index` calls ``index(self.options, self.md)``).
+    Dropping it would silently build a different table than the Markdown pages
+    on the same site get - Material's index reads its custom-icon paths from
+    there - which is the one thing this module exists to prevent.
+
+    ``md`` has no counterpart here: there is no Markdown instance in a Carve
+    render, so an empty mapping stands in. Every index shipped by `pymdownx`
+    and by Material ignores it.
     """
     factory = index if index is not None else _default_index()
     if factory is None:
         return {}, {}
     try:
-        built = factory({}, {})
+        # A zero-argument factory is `pymdownx`'s deprecated legacy form, and
+        # it still calls those without arguments rather than failing.
+        arity = len(inspect.getfullargspec(factory).args)
+        built = factory(dict(options or {}), {}) if arity else factory()
+    except SymbolError:
+        raise
     except Exception as error:  # pragma: no cover - a database that will not load
         raise SymbolError(f"the emoji index could not be built: {error}") from error
     if not isinstance(built, Mapping):  # pragma: no cover - a hostile index
         raise SymbolError("the emoji index did not return a mapping")
     return built.get("emoji") or {}, built.get("aliases") or {}
+
+
+_CACHE: dict[Any, dict[str, str]] = {}
+"""Resolved maps, keyed by what produced them.
+
+Built once per process rather than per page: the stock table is 3840 entries
+before aliases. The key has to survive a `dict` of index options, so it is
+frozen below; anything that will not freeze skips the cache rather than
+raising, because a slow build beats a broken one.
+"""
+
+_CACHE_LIMIT = 8
+
+
+def _freeze(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return tuple(sorted(((k, _freeze(v)) for k, v in value.items()), key=repr))
+    if isinstance(value, (list, tuple, set)):
+        return tuple(_freeze(v) for v in value)
+    return value
 
 
 def _character(unicode_points: str) -> str:
@@ -120,6 +153,7 @@ def _character(unicode_points: str) -> str:
 def emoji_map(
     mode: str,
     index: Optional[Callable[..., Mapping[str, Any]]] = None,
+    options: Optional[Mapping[str, Any]] = None,
 ) -> dict[str, str]:
     """Return a Carve symbol map for ``mode``.
 
@@ -142,7 +176,17 @@ def emoji_map(
     if mode not in MODES:
         raise SymbolError(f"unknown emoji mode: {mode!r} (one of {', '.join(MODES)})")
 
-    emoji, aliases = _database(index)
+    key: Any = (mode, index, _freeze(options))
+    try:
+        hash(key)
+    except TypeError:  # pragma: no cover - only an unfreezable option value
+        key = None
+    if key is not None and key in _CACHE:
+        # A copy, so a caller that edits what it got back does not edit what
+        # the next page is rendered with.
+        return dict(_CACHE[key])
+
+    emoji, aliases = _database(index, options)
     if not emoji:
         raise SymbolError(
             f"emoji: {mode!r} needs an emoji database, and none is installed. "
@@ -165,6 +209,10 @@ def emoji_map(
             continue
         out.setdefault(alias.strip(":"), _render(mode, alias, points, cdn))
 
+    if key is not None:
+        if len(_CACHE) >= _CACHE_LIMIT:
+            _CACHE.clear()
+        _CACHE[key] = dict(out)
     return out
 
 
@@ -182,13 +230,14 @@ def build(
     mode: str,
     extra: Optional[Mapping[str, str]] = None,
     index: Optional[Callable[..., Mapping[str, Any]]] = None,
+    options: Optional[Mapping[str, Any]] = None,
 ) -> Optional[dict[str, str]]:
     """The map Carve is called with: the emoji table, then the site's own.
 
     ``None`` rather than an empty map when there is nothing to pass, so the
     engine keeps its own default behavior instead of being told "no symbols".
     """
-    combined = dict(emoji_map(mode, index))
+    combined = dict(emoji_map(mode, index, options))
     if extra:
         combined.update(extra)
     return combined or None
