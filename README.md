@@ -212,7 +212,3 @@ build test. Build it directly with:
 cd example
 mkdocs build --strict
 ```
-
-## License
-
-MIT. See [LICENSE](LICENSE).
