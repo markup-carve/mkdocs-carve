@@ -1,7 +1,7 @@
 # Releasing
 
 `mkdocs-carve` publishes to PyPI from `.github/workflows/release.yml`, which
-runs on a pushed `v*` tag.
+runs on a pushed bare SemVer tag (`X.Y.Z`).
 
 ## The engine dependency
 
@@ -32,8 +32,8 @@ a temporary git pin taken during development cannot reach an upload.
 
 1. Move the entries under a version heading in `CHANGELOG.md` and set its date.
 2. Set `project.version` in `pyproject.toml`.
-3. Tag `vX.Y.Z` and push the tag. The workflow matches `v*` - a bare `0.1.0` tag
-   lands but fires nothing.
+3. Tag `X.Y.Z` and push the tag. The workflow requires a bare SemVer tag such
+   as `0.1.0`.
 4. Write the release notes as a draft release on GitHub and publish it.
 
 Before anything is uploaded the build job checks that the tag matches the
