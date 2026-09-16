@@ -63,6 +63,8 @@ This homepage is written in *Carve* (note: `*bold*` is strong,
 | `extensions` | list of str         | `["heading_permalinks"]` | Carve extension names enabled for every Carve page. Passed straight to `carve.to_html`. Set to `[]` to use the core renderer only. |
 | `emoji`      | `none` \| `unicode` \| `twemoji` | `none` | Resolve `:smile:` and friends through the emoji database your Markdown pages already use. See [Symbols and emoji](#symbols-and-emoji). |
 | `symbols`    | mapping, or a path  | *(none)*                 | Your own `:name:` symbols, written inline or kept in a JSON file whose path is given here. **Values are emitted raw** - see the warning below. |
+| `includes`   | bool                | `false`                  | Expand `{{ path }}` includes for file-backed pages. Off leaves a directive literal. See [Includes](#includes). |
+| `include_root` | absolute path     | `docs_dir`               | The containment root includes resolve within. Must be absolute; a relative value is refused, not resolved. |
 
 Example enabling additional Carve extensions:
 
@@ -167,6 +169,52 @@ generate the JSON file from page content, from front matter, from a form
 submission, or from anything a contributor can influence without review. If a
 value can reach the map from outside your own repository, it can put arbitrary
 HTML on every page of your site.
+
+### Includes
+
+A Carve page can pull another file in with `{{ path }}`. The plugin leaves that
+literal until a site asks for it:
+
+```yaml
+plugins:
+  - carve:
+      includes: true
+```
+
+Paths resolve relative to the file that wrote them, and nothing resolves outside
+the containment root. The root is `docs_dir` unless `include_root` names another
+one, and an include that would leave it is not expanded.
+
+`include_root` must be an **absolute** path. A relative one is refused rather
+than resolved, because every way of resolving it ends at the directory the build
+happened to run from, which is not a root anyone chose. Absolutize it yourself if
+you need to - in `mkdocs.yml` that means writing the path out, or setting the
+value from your own build script.
+
+```yaml
+plugins:
+  - carve:
+      includes: true
+      include_root: /srv/shared/fragments
+```
+
+A target that cannot be read is reported as a build warning naming the page, and
+the directive is left as written. The warning does not say whether the file was
+missing or refused by containment: both report `include-unresolved`, so a page
+cannot be used to probe the filesystem. Which one it was is in the build log at
+`INFO`.
+
+Under `mkdocs serve`, a change anywhere under the containment root triggers a
+rebuild, including a fragment that did not exist yet.
+
+Fragments living under `docs_dir` are still pages in their own right, since this
+plugin claims every `.crv` file. Keep them out of the built site with MkDocs'
+own [`exclude_docs`](https://www.mkdocs.org/user-guide/configuration/#exclude_docs),
+or put them under an `include_root` outside `docs_dir`.
+
+> The released `carve-lang` does not expose include expansion yet; it landed in
+> the engine after 0.1.3. `includes: true` on an engine without it is a
+> configuration error rather than a silent no-op.
 
 ## How it works
 

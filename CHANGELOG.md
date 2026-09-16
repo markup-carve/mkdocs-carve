@@ -10,6 +10,11 @@ own.
 
 Prepared as 0.1.0. Releasing is the maintainer's call.
 
+- Expand `{{ path }}` includes for file-backed pages, contained to a root, via
+  new `includes` and `include_root` config keys. Off by default; a directive
+  stays literal until a site asks. Needs an engine that exposes
+  `carve.render_with_includes`, which no published `carve-lang` does yet.
+  markup-carve/mkdocs-carve#17
 - Render `.crv` pages as MkDocs documentation pages, alongside Markdown.
 - Enable Carve extensions per site through the plugin's `extensions` config key,
   defaulting to `["heading_permalinks"]`.

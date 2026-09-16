@@ -34,6 +34,11 @@ Design notes
   built before any page exists cannot have been influenced by page content.
   See ``mkdocs_carve.symbols`` for why that matters (the values are emitted
   RAW).
+
+* Include expansion is the engine's, never this plugin's. ``include_root`` is
+  handed to ``carve.render_with_includes`` as the site wrote it, so the
+  resolver's own refusal of a relative root is what fires. Only the default,
+  derived from ``docs_dir``, is absolutized here.
 """
 
 from __future__ import annotations
@@ -46,9 +51,11 @@ from typing import Any, Dict, Optional
 import carve
 from mkdocs.config import config_options
 from mkdocs.config.base import ValidationError
-from mkdocs.plugins import BasePlugin
+from mkdocs.plugins import BasePlugin, get_plugin_logger
 
 from mkdocs_carve import symbols as symbols_module
+
+log = get_plugin_logger(__name__)
 
 #: Source extensions this plugin claims as Carve documentation pages.
 CARVE_SUFFIXES = (".crv",)
@@ -75,6 +82,30 @@ def convert_carve(
     the site's own configuration - see ``mkdocs_carve.symbols``.
     """
     return carve.to_html(source, extensions=extensions, symbols=symbols)
+
+
+def convert_carve_with_includes(
+    source: str,
+    include_root: str,
+    source_path: str,
+    extensions: Optional[list] = None,
+    symbols: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
+    """Convert Carve source with `{{ path }}` includes expanded from disk.
+
+    ``include_root`` reaches the engine unchanged. ``source_path`` is the
+    document's identity relative to that root; every path the engine reports
+    back is relative to it too, so a message shown to a reader carries no host
+    directory layout.
+    """
+    return carve.render_with_includes(
+        source,
+        include_root,
+        target="html",
+        extensions=extensions,
+        symbols=symbols,
+        source_path=source_path,
+    )
 
 
 def _is_carve_path(src_uri: str) -> bool:
@@ -124,11 +155,19 @@ class CarvePlugin(BasePlugin):
         # list, and a long list in the middle of `mkdocs.yml` hides everything
         # after it.
         ("symbols", config_options.Type((dict, str), default=None)),
+        # Off by default: expansion reads files a string conversion never
+        # touches, so a site opts into it rather than discovering it.
+        ("includes", config_options.Type(bool, default=False)),
+        # An explicit containment root. Left unset, the root is `docs_dir`.
+        ("include_root", config_options.Type(str, default=None)),
     )
 
     #: Resolved in ``on_config`` and reused for every page. ``None`` means
     #: "pass nothing", which is not the same as an empty map.
     _symbols: Optional[Dict[str, str]] = None
+
+    #: The containment root, or ``None`` when expansion is off.
+    _include_root: Optional[str] = None
 
     def on_config(self, config):
         """Resolve the symbol map once, before any page is rendered.
@@ -147,7 +186,32 @@ class CarvePlugin(BasePlugin):
             )
         except symbols_module.SymbolError as error:
             raise ValidationError(str(error)) from error
+        self._include_root = self._resolve_include_root(config)
         return config
+
+    def _resolve_include_root(self, config: Any) -> Optional[str]:
+        """The containment root for this build, or ``None`` when includes are off.
+
+        A configured value is handed to the engine exactly as written. The
+        resolver refuses a relative root, and that refusal is what keeps
+        containment off the process working directory - absolutizing here would
+        mean it never fires. The derived default has no such history: it is
+        this plugin's own value, so it is absolutized.
+        """
+        if not self.config["includes"]:
+            return None
+        if not hasattr(carve, "render_with_includes"):
+            raise ValidationError(
+                "includes: the installed carve-lang exposes no "
+                "render_with_includes; upgrade the engine or set includes: false"
+            )
+        configured = self.config["include_root"]
+        root = configured if configured else os.path.abspath(config["docs_dir"])
+        try:
+            carve.render_with_includes("", root)
+        except ValueError as error:
+            raise ValidationError(f"include_root: {error}") from error
+        return root
 
     @staticmethod
     def _site_emoji_index(config: Any) -> tuple[Optional[Any], Optional[dict]]:
@@ -248,4 +312,47 @@ class CarvePlugin(BasePlugin):
         if not _is_carve_path(src_uri):
             return markdown
         extensions = self.config["extensions"] or None
-        return convert_carve(markdown, extensions=extensions, symbols=self._symbols)
+        abs_src_path = getattr(page.file, "abs_src_path", None)
+        if not self._include_root or not abs_src_path:
+            return convert_carve(markdown, extensions=extensions, symbols=self._symbols)
+
+        result = convert_carve_with_includes(
+            markdown,
+            self._include_root,
+            os.path.relpath(abs_src_path, self._include_root),
+            extensions=extensions,
+            symbols=self._symbols,
+        )
+        self._report(result, src_uri)
+        return result["output"]
+
+    def _report(self, result: Dict[str, Any], src_uri: str) -> None:
+        """Log what expansion degraded, located on the page that asked for it."""
+        for warning in result["warnings"]:
+            origin = warning.get("file")
+            where = src_uri if not origin or origin == src_uri else f"{src_uri} ({origin})"
+            log.warning("%s: %s: %s", where, warning["rule"], warning["message"])
+        suppressed = result["suppressed_warnings"]
+        if suppressed:
+            log.warning("%s: %d further include warnings suppressed", src_uri, suppressed)
+        # The engine reports a containment denial and a missing file as one
+        # warning so a page cannot probe the filesystem (spec I7). The class
+        # that was collapsed is on the dependency, for the build's own log.
+        for dependency in result["dependencies"]:
+            if dependency["denial"]:
+                log.info(
+                    "%s: include %s: %s", src_uri, dependency["id"], dependency["denial"]
+                )
+
+    def on_serve(self, server, *, config, builder):
+        """Rebuild when anything under the containment root changes.
+
+        Watching the root rather than the targets a build happened to touch is
+        what containment buys: a target that does not exist yet has no path to
+        watch, and an unresolved dependency reports the directive as written
+        rather than a path relative to the root, so it cannot be joined back
+        onto one. Every target, present or not, lies under the root.
+        """
+        if self._include_root:
+            server.watch(self._include_root)
+        return server
