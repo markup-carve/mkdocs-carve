@@ -27,4 +27,4 @@
 # `.github/workflows/scheduled.yml` deliberately does NOT install under this
 # file. That daily run is the canary that notices a new engine release; pinning
 # it would blind exactly the run whose job is to see the drift.
-carve-lang==0.1.2
+carve-lang==0.1.4
