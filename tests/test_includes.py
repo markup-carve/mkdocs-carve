@@ -1,9 +1,9 @@
 """Include expansion: containment, denials, and what a reader is shown.
 
-These need an engine that exposes ``carve.render_with_includes``. The pinned
-engine in ``constraints-ci.txt`` predates it, so the ``includes`` CI job
-installs one that has it; the skip below is what keeps the pinned job honest
-about not having measured this.
+These need an engine that exposes ``carve.render_with_includes``, which
+carve-lang carries from 0.1.4. The skip below is for a run against the declared
+floor, which is older; CI installs under ``constraints-ci.txt`` and asserts the
+entry point is there, so a skip cannot pass for a measurement.
 """
 
 from __future__ import annotations
