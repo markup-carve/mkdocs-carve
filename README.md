@@ -212,9 +212,9 @@ plugin claims every `.crv` file. Keep them out of the built site with MkDocs'
 own [`exclude_docs`](https://www.mkdocs.org/user-guide/configuration/#exclude_docs),
 or put them under an `include_root` outside `docs_dir`.
 
-> The released `carve-lang` does not expose include expansion yet; it landed in
-> the engine after 0.1.3. `includes: true` on an engine without it is a
-> configuration error rather than a silent no-op.
+> Include expansion needs `carve-lang` 0.1.4 or newer, above the floor this
+> plugin declares. `includes: true` on an engine without it is a configuration
+> error rather than a silent no-op.
 
 ## How it works
 

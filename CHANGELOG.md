@@ -6,15 +6,16 @@ Rendering is done by the Carve engine (`carve-lang`), so an engine change can
 alter output with no plugin diff. Engine bumps therefore get an entry of their
 own.
 
-## Unreleased
-
-Prepared as 0.1.0. Releasing is the maintainer's call.
+## 0.1.1 - 2026-09-21
 
 - Expand `{{ path }}` includes for file-backed pages, contained to a root, via
   new `includes` and `include_root` config keys. Off by default; a directive
-  stays literal until a site asks. Needs an engine that exposes
-  `carve.render_with_includes`, which no published `carve-lang` does yet.
-  markup-carve/mkdocs-carve#17
+  stays literal until a site asks. Needs `carve-lang` 0.1.4 or newer, above the
+  declared floor: `includes: true` on an older engine is a configuration error
+  rather than a silent no-op. markup-carve/mkdocs-carve#17
+
+## 0.1.0 - 2026-08-27
+
 - Render `.crv` pages as MkDocs documentation pages, alongside Markdown.
 - Enable Carve extensions per site through the plugin's `extensions` config key,
   defaulting to `["heading_permalinks"]`.
