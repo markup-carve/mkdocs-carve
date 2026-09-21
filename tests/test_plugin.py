@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import os
 import tempfile
+from importlib.metadata import version as metadata_version
 from types import SimpleNamespace
 
+import mkdocs_carve
 import pytest
 from mkdocs.config.base import ValidationError
 from mkdocs.structure.files import File, Files
@@ -414,3 +416,8 @@ def test_a_symbol_file_resolves_from_the_cwd_when_there_is_no_config_file(
     plugin.load_config({"symbols": "symbols.json"})
     plugin.on_config({"config_file_path": None})
     assert plugin._symbols == {"a": "A"}
+
+
+def test_package_version_matches_the_installed_distribution():
+    """A hardcoded `__version__` went stale across a release; this reads one source."""
+    assert mkdocs_carve.__version__ == metadata_version("mkdocs-carve")
