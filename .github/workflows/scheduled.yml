@@ -23,9 +23,12 @@ on:
     - cron: "0 5 * * *"
   workflow_dispatch:
 
+# Each job declares timeout-minutes so a hung step fails fast
+# instead of inheriting the 360-minute GitHub default.
 jobs:
   suite:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

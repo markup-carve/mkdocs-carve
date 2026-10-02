@@ -6,9 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# Each job declares timeout-minutes so a hung step fails fast
+# instead of inheriting the 360-minute GitHub default.
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
