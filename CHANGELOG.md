@@ -8,6 +8,8 @@ own.
 
 ## Unreleased
 
+## 0.1.2 - 2026-10-08
+
 - The engine CI measures moves from `carve-lang` 0.1.4 to 0.1.7, so a run here
   measures what PyPI serves rather than an engine three releases behind it. Four
   renderings change with it, each visible on a built page: a cross-reference
