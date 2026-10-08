@@ -27,4 +27,12 @@
 # `.github/workflows/scheduled.yml` deliberately does NOT install under this
 # file. That daily run is the canary that notices a new engine release; pinning
 # it would blind exactly the run whose job is to see the drift.
-carve-lang==0.1.4
+#
+# THE CANARY ONLY SEES WHAT THE SUITE CAN SEE, which it could not. This pin sat
+# at 0.1.4 while 0.1.5, 0.1.6 and 0.1.7 published, and the unconstrained daily
+# run was green every day - correctly, because no test here rendered a construct
+# whose reading had moved. Measured across the four releases, four boundary
+# shapes render differently between 0.1.4 and 0.1.7 and all 95 tests pass on
+# both. tests/test_rendering_rulings.py is what gives the canary something to
+# fail on.
+carve-lang==0.1.7
