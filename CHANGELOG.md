@@ -8,6 +8,16 @@ own.
 
 ## Unreleased
 
+- New `lint` option reports Carve lint findings as build warnings naming the
+  page, line, column and rule id, so `mkdocs build --strict` fails on them. Off
+  by default.
+- `extensions` entries can carry options, written as `{name: {option: value}}`
+  like `markdown_extensions`. An unknown extension or option is now a
+  configuration error when the build starts rather than a failure on the first
+  page that uses it.
+- The engine CI measures moves from `carve-lang` 0.1.7 to 0.1.9.
+- The README documents `pygments-carve` for highlighting `carve` fences.
+
 ## 0.1.2 - 2026-10-08
 
 - The engine CI measures moves from `carve-lang` 0.1.4 to 0.1.7, so a run here
