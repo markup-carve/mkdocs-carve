@@ -124,11 +124,19 @@ WARNING -  mkdocs_carve: guide/intro.crv:3:1: unattached-block-attribute: This b
 
 Each warning names the page, line, column and rule id. `mkdocs build --strict`
 treats them like any other warning and fails the build. The linter reads the
-same `extensions` list the pages render with, and it checks the page source
-before includes are expanded.
+same `extensions` list the pages render with.
 
-> `lint` and extension options need `carve-lang` 0.1.2 or newer. On an older
-> engine either one is a configuration error.
+With `includes: true` as well, the linter follows the includes and checks every
+included Carve file too. A finding inside one names the page, the included file
+and where it was included:
+
+```
+WARNING -  mkdocs_carve: page.crv: parts/frag.crv:3:1: unattached-block-attribute: ... (included at page.crv:3:1)
+```
+
+An include that cannot be expanded is reported once, by the include warning
+described under [Includes](#includes), not again by the linter.
+
 
 ### Highlighting Carve code blocks
 
@@ -267,10 +275,6 @@ Fragments living under `docs_dir` are still pages in their own right, since this
 plugin claims every `.crv` file. Keep them out of the built site with MkDocs'
 own [`exclude_docs`](https://www.mkdocs.org/user-guide/configuration/#exclude_docs),
 or put them under an `include_root` outside `docs_dir`.
-
-> Include expansion needs `carve-lang` 0.1.4 or newer, above the floor this
-> plugin declares. `includes: true` on an engine without it is a configuration
-> error rather than a silent no-op.
 
 ## How it works
 

@@ -235,11 +235,6 @@ class CarvePlugin(BasePlugin):
             raise ValidationError(str(error)) from error
         self._include_root = self._resolve_include_root(config)
         self._extension_settings = self._resolve_extensions()
-        if self.config["lint"] and not hasattr(carve, "lint"):
-            raise ValidationError(
-                "lint: the installed carve-lang exposes no lint; upgrade the "
-                "engine or set lint: false"
-            )
         return config
 
     def _resolve_extensions(
@@ -255,14 +250,7 @@ class CarvePlugin(BasePlugin):
             return None, None
         try:
             convert_carve("", extensions=names, extension_options=options)
-        except TypeError as error:
-            if "extension_options" in str(error):
-                raise ValidationError(
-                    "extensions: the installed carve-lang takes no extension "
-                    "options; upgrade the engine"
-                ) from error
-            raise ValidationError(f"extensions: {error}") from error
-        except ValueError as error:
+        except (TypeError, ValueError) as error:
             raise ValidationError(f"extensions: {error}") from error
         return names, options
 
@@ -283,11 +271,6 @@ class CarvePlugin(BasePlugin):
         """
         if not self.config["includes"]:
             return None
-        if not hasattr(carve, "render_with_includes"):
-            raise ValidationError(
-                "includes: the installed carve-lang exposes no "
-                "render_with_includes; upgrade the engine or set includes: false"
-            )
         configured = self.config["include_root"]
         root = configured if configured else os.path.abspath(config["docs_dir"])
         try:
@@ -397,10 +380,16 @@ class CarvePlugin(BasePlugin):
         if self._extension_settings is None:
             self._extension_settings = self._split_extensions()
         extensions, options = self._extension_settings
-        if self.config["lint"]:
-            self._lint(markdown, extensions, src_uri)
         abs_src_path = getattr(page.file, "abs_src_path", None)
-        if not self._include_root or not abs_src_path:
+        expand = bool(self._include_root and abs_src_path)
+        if self.config["lint"]:
+            self._lint(
+                markdown,
+                extensions,
+                src_uri,
+                os.path.relpath(abs_src_path, self._include_root) if expand else None,
+            )
+        if not expand:
             return convert_carve(
                 markdown,
                 extensions=extensions,
@@ -419,17 +408,50 @@ class CarvePlugin(BasePlugin):
         self._report(result, src_uri)
         return result["output"]
 
-    @staticmethod
-    def _lint(source: str, extensions: Optional[list], src_uri: str) -> None:
-        """Log each lint finding as a build warning, so `--strict` fails on it."""
-        for warning in carve.lint(source, extensions=extensions):
+    def _lint(
+        self,
+        source: str,
+        extensions: Optional[list],
+        src_uri: str,
+        source_path: Optional[str],
+    ) -> None:
+        """Log each lint finding as a build warning, so `--strict` fails on it.
+
+        With includes on, the pass also lints every included file. A directive
+        that stays literal is left to ``_report``, which already warns about
+        it from the render, so it is not reported twice.
+        """
+        if source_path is None:
+            findings = carve.lint(source, extensions=extensions)
+        else:
+            findings = carve.lint(
+                source,
+                extensions=extensions,
+                include_root=self._include_root,
+                source_path=source_path,
+            )
+        for warning in findings:
+            origin = warning.get("file")
+            if source_path is not None and warning["rule"].startswith("include-"):
+                continue
+            position = f"{warning['line']}:{warning['column']}"
+            if origin and origin != source_path:
+                sites = ", ".join(
+                    f"{site['file']}:{site['line']}:{site['column']}"
+                    for site in warning["includedBy"]
+                )
+                log.warning(
+                    "%s: %s:%s: %s: %s (included at %s)",
+                    src_uri,
+                    origin,
+                    position,
+                    warning["rule"],
+                    warning["message"],
+                    sites,
+                )
+                continue
             log.warning(
-                "%s:%d:%d: %s: %s",
-                src_uri,
-                warning["line"],
-                warning["column"],
-                warning["rule"],
-                warning["message"],
+                "%s:%s: %s: %s", src_uri, position, warning["rule"], warning["message"]
             )
 
     def _report(self, result: Dict[str, Any], src_uri: str) -> None:
