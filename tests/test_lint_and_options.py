@@ -189,3 +189,46 @@ def test_an_option_of_the_wrong_type_names_the_option_not_the_engine():
         plugin.on_config({"docs_dir": os.getcwd()})
     assert "new_window" in str(caught.value)
     assert "upgrade" not in str(caught.value)
+
+
+# --- lint across includes --------------------------------------------------
+
+
+def _include_site(tmp_path, includes=True):
+    docs = tmp_path / "docs"
+    (docs / "parts").mkdir(parents=True)
+    (docs / "parts" / "frag.crv").write_text(UNATTACHED, encoding="utf-8")
+    page_path = docs / "page.crv"
+    page_path.write_text("Intro.\n\n{{ parts/frag.crv }}\n\n{{ missing.crv }}\n", encoding="utf-8")
+    plugin = CarvePlugin()
+    plugin.load_config({"lint": True, "includes": includes})
+    plugin.on_config({"docs_dir": str(docs)})
+    page = SimpleNamespace(file=SimpleNamespace(src_uri="page.crv", abs_src_path=str(page_path)))
+    return plugin, page, page_path.read_text(encoding="utf-8")
+
+
+def test_a_finding_inside_an_included_file_names_the_file_and_the_site(tmp_path, caplog):
+    plugin, page, source = _include_site(tmp_path)
+    with caplog.at_level(logging.WARNING):
+        plugin.on_page_markdown(source, page=page, config={}, files=None)
+    messages = [r.getMessage() for r in caplog.records]
+    assert any(
+        "page.crv: parts/frag.crv:3:1: unattached-block-attribute: " in m
+        and m.endswith("(included at page.crv:3:1)")
+        for m in messages
+    ), messages
+
+
+def test_an_unresolved_include_is_warned_once_not_twice(tmp_path, caplog):
+    plugin, page, source = _include_site(tmp_path)
+    with caplog.at_level(logging.WARNING):
+        plugin.on_page_markdown(source, page=page, config={}, files=None)
+    unresolved = [r for r in caplog.records if "include-unresolved" in r.getMessage()]
+    assert len(unresolved) == 1, [r.getMessage() for r in unresolved]
+
+
+def test_included_files_are_not_linted_while_includes_are_off(tmp_path, caplog):
+    plugin, page, source = _include_site(tmp_path, includes=False)
+    with caplog.at_level(logging.WARNING):
+        plugin.on_page_markdown(source, page=page, config={}, files=None)
+    assert not [r for r in caplog.records if "frag.crv" in r.getMessage()]

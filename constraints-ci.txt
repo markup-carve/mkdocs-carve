@@ -35,4 +35,4 @@
 # shapes render differently between 0.1.4 and 0.1.7 and all 95 tests pass on
 # both. tests/test_rendering_rulings.py is what gives the canary something to
 # fail on.
-carve-lang==0.1.9
+carve-lang==0.1.10

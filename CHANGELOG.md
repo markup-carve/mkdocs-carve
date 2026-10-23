@@ -8,6 +8,12 @@ own.
 
 ## Unreleased
 
+- With `lint` and `includes` both on, the linter also checks every included
+  Carve file. A finding there names the page, the included file and the
+  include site.
+- The declared engine floor rises from `carve-lang` 0.1.1 to 0.1.10, the first
+  release whose linter follows includes. CI measures 0.1.10.
+
 ## 0.1.3 - 2026-10-23
 
 - New `lint` option reports Carve lint findings as build warnings naming the
