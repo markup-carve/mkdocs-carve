@@ -70,6 +70,7 @@ def convert_carve(
     source: str,
     extensions: Optional[list] = None,
     symbols: Optional[Dict[str, str]] = None,
+    extension_options: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> str:
     """Convert a Carve source string into an HTML fragment.
 
@@ -81,6 +82,13 @@ def convert_carve(
     literal. Values are emitted RAW by the engine and must therefore come from
     the site's own configuration - see ``mkdocs_carve.symbols``.
     """
+    if extension_options:
+        return carve.to_html(
+            source,
+            extensions=extensions,
+            symbols=symbols,
+            extension_options=extension_options,
+        )
     return carve.to_html(source, extensions=extensions, symbols=symbols)
 
 
@@ -90,6 +98,7 @@ def convert_carve_with_includes(
     source_path: str,
     extensions: Optional[list] = None,
     symbols: Optional[Dict[str, str]] = None,
+    extension_options: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Convert Carve source with `{{ path }}` includes expanded from disk.
 
@@ -98,6 +107,7 @@ def convert_carve_with_includes(
     back is relative to it too, so a message shown to a reader carries no host
     directory layout.
     """
+    options = {"extension_options": extension_options} if extension_options else {}
     return carve.render_with_includes(
         source,
         include_root,
@@ -105,7 +115,36 @@ def convert_carve_with_includes(
         extensions=extensions,
         symbols=symbols,
         source_path=source_path,
+        **options,
     )
+
+
+def split_extensions(
+    entries: list,
+) -> tuple[list, Optional[Dict[str, Dict[str, Any]]]]:
+    """Split the ``extensions`` setting into names and per-extension options.
+
+    An entry is either a name or a one-key mapping from a name to its options,
+    the shape MkDocs itself uses for ``markdown_extensions``.
+    """
+    names: list = []
+    options: Dict[str, Dict[str, Any]] = {}
+    for entry in entries:
+        if isinstance(entry, str):
+            names.append(entry)
+            continue
+        if not isinstance(entry, dict) or len(entry) != 1:
+            raise ValidationError(
+                f"extensions: {entry!r}: an entry is a name, or a mapping of "
+                "one name to its options"
+            )
+        ((name, value),) = entry.items()
+        if not isinstance(name, str) or not isinstance(value, (dict, type(None))):
+            raise ValidationError(f"extensions: {name!r}: options must be a mapping")
+        names.append(name)
+        if value:
+            options[name] = dict(value)
+    return names, options or None
 
 
 def _is_carve_path(src_uri: str) -> bool:
@@ -143,9 +182,12 @@ class CarvePlugin(BasePlugin):
         (
             "extensions",
             config_options.ListOfItems(
-                config_options.Type(str), default=list(DEFAULT_EXTENSIONS)
+                config_options.Type((str, dict)), default=list(DEFAULT_EXTENSIONS)
             ),
         ),
+        # Off by default: an existing `--strict` build would start failing on
+        # warnings it never saw before.
+        ("lint", config_options.Type(bool, default=False)),
         # Off by default: a bundled table would decide for the site what
         # `:smile:` means, and a site that has not asked for emoji should get
         # the engine's own behavior unchanged.
@@ -169,6 +211,11 @@ class CarvePlugin(BasePlugin):
     #: The containment root, or ``None`` when expansion is off.
     _include_root: Optional[str] = None
 
+    #: Extension names and per-extension options, split once.
+    _extension_settings: Optional[
+        tuple[Optional[list], Optional[Dict[str, Dict[str, Any]]]]
+    ] = None
+
     def on_config(self, config):
         """Resolve the symbol map once, before any page is rendered.
 
@@ -187,7 +234,43 @@ class CarvePlugin(BasePlugin):
         except symbols_module.SymbolError as error:
             raise ValidationError(str(error)) from error
         self._include_root = self._resolve_include_root(config)
+        self._extension_settings = self._resolve_extensions()
+        if self.config["lint"] and not hasattr(carve, "lint"):
+            raise ValidationError(
+                "lint: the installed carve-lang exposes no lint; upgrade the "
+                "engine or set lint: false"
+            )
         return config
+
+    def _resolve_extensions(
+        self,
+    ) -> tuple[Optional[list], Optional[Dict[str, Dict[str, Any]]]]:
+        """Split and check the ``extensions`` setting once, before any page.
+
+        A probe render surfaces an unknown name or option as a configuration
+        error instead of a failure on the first page that uses it.
+        """
+        names, options = self._split_extensions()
+        if not names:
+            return None, None
+        try:
+            convert_carve("", extensions=names, extension_options=options)
+        except TypeError as error:
+            if "extension_options" in str(error):
+                raise ValidationError(
+                    "extensions: the installed carve-lang takes no extension "
+                    "options; upgrade the engine"
+                ) from error
+            raise ValidationError(f"extensions: {error}") from error
+        except ValueError as error:
+            raise ValidationError(f"extensions: {error}") from error
+        return names, options
+
+    def _split_extensions(
+        self,
+    ) -> tuple[Optional[list], Optional[Dict[str, Dict[str, Any]]]]:
+        names, options = split_extensions(self.config["extensions"] or [])
+        return names or None, options
 
     def _resolve_include_root(self, config: Any) -> Optional[str]:
         """The containment root for this build, or ``None`` when includes are off.
@@ -311,10 +394,19 @@ class CarvePlugin(BasePlugin):
         src_uri = getattr(page.file, "src_uri", "") or ""
         if not _is_carve_path(src_uri):
             return markdown
-        extensions = self.config["extensions"] or None
+        if self._extension_settings is None:
+            self._extension_settings = self._split_extensions()
+        extensions, options = self._extension_settings
+        if self.config["lint"]:
+            self._lint(markdown, extensions, src_uri)
         abs_src_path = getattr(page.file, "abs_src_path", None)
         if not self._include_root or not abs_src_path:
-            return convert_carve(markdown, extensions=extensions, symbols=self._symbols)
+            return convert_carve(
+                markdown,
+                extensions=extensions,
+                symbols=self._symbols,
+                extension_options=options,
+            )
 
         result = convert_carve_with_includes(
             markdown,
@@ -322,9 +414,23 @@ class CarvePlugin(BasePlugin):
             os.path.relpath(abs_src_path, self._include_root),
             extensions=extensions,
             symbols=self._symbols,
+            extension_options=options,
         )
         self._report(result, src_uri)
         return result["output"]
+
+    @staticmethod
+    def _lint(source: str, extensions: Optional[list], src_uri: str) -> None:
+        """Log each lint finding as a build warning, so `--strict` fails on it."""
+        for warning in carve.lint(source, extensions=extensions):
+            log.warning(
+                "%s:%d:%d: %s: %s",
+                src_uri,
+                warning["line"],
+                warning["column"],
+                warning["rule"],
+                warning["message"],
+            )
 
     def _report(self, result: Dict[str, Any], src_uri: str) -> None:
         """Log what expansion degraded, located on the page that asked for it."""

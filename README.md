@@ -60,7 +60,8 @@ This homepage is written in *Carve* (note: `*bold*` is strong,
 
 | Option       | Type                | Default                  | Description |
 |--------------|---------------------|--------------------------|-------------|
-| `extensions` | list of str         | `["heading_permalinks"]` | Carve extension names enabled for every Carve page. Passed straight to `carve.to_html`. Set to `[]` to use the core renderer only. |
+| `extensions` | list of names or `{name: options}` | `["heading_permalinks"]` | Carve extensions enabled for every Carve page, each optionally with its options. Set to `[]` to use the core renderer only. See [Extension options](#extension-options). |
+| `lint`       | bool                | `false`                  | Report lint findings on Carve pages as build warnings, so `mkdocs build --strict` fails on them. See [Lint](#lint). |
 | `emoji`      | `none` \| `unicode` \| `twemoji` | `none` | Resolve `:smile:` and friends through the emoji database your Markdown pages already use. See [Symbols and emoji](#symbols-and-emoji). |
 | `symbols`    | mapping, or a path  | *(none)*                 | Your own `:name:` symbols, written inline or kept in a JSON file whose path is given here. **Values are emitted raw** - see the warning below. |
 | `includes`   | bool                | `false`                  | Expand `{{ path }}` includes for file-backed pages. Off leaves a directive literal. See [Includes](#includes). |
@@ -82,6 +83,61 @@ than trusting a list in a README that cannot know which engine build you have:
 
 ```bash
 python -c "import carve; print(carve.extensions())"
+```
+
+### Extension options
+
+An entry can also be a mapping from an extension name to its options, the same
+shape `markdown_extensions` uses:
+
+```yaml
+plugins:
+  - carve:
+      extensions:
+        - heading_permalinks:
+            symbol: "#"
+        - wikilinks:
+            css_class: wiki
+            new_window: true
+        - math_block
+```
+
+The options go to the engine as written. An unknown extension or option is a
+configuration error when the build starts, not a failure on the first page that
+uses it. The error names the options the extension accepts.
+
+### Lint
+
+Carve's linter reports constructs that parse and render, but not the way the
+author meant: a block attribute that attaches to nothing, a reference link with
+no definition, a duplicate footnote. Turn it on to see those as build warnings:
+
+```yaml
+plugins:
+  - carve:
+      lint: true
+```
+
+```
+WARNING -  mkdocs_carve: guide/intro.crv:3:1: unattached-block-attribute: This block attribute reaches no block: ...
+```
+
+Each warning names the page, line, column and rule id. `mkdocs build --strict`
+treats them like any other warning and fails the build. The linter reads the
+same `extensions` list the pages render with, and it checks the page source
+before includes are expanded.
+
+> `lint` and extension options need `carve-lang` 0.1.2 or newer. On an older
+> engine either one is a configuration error.
+
+### Highlighting Carve code blocks
+
+To highlight `carve` fences in your Markdown pages, install
+[pygments-carve](https://github.com/markup-carve/pygments-carve). Pygments picks
+the lexer up on its own, so no configuration is needed:
+
+```bash
+pip install pygments-carve
 ```
 
 ### Symbols and emoji
