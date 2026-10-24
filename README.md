@@ -268,6 +268,21 @@ missing or refused by containment: both report `include-unresolved`, so a page
 cannot be used to probe the filesystem. Which one it was is in the build log at
 `INFO`.
 
+Select a named region with `@region`. Add `@code:python` when the target is
+source code. For example, `index.crv` can contain:
+
+```text
+{{ src/example.py @region:demo @code:python }}
+{{ parts/intro.crv @region:summary }}
+```
+
+Mark the Python region with whole-line `#region demo` and `#endregion` lines.
+Mark the Carve region with `%% #region summary` and `%% #endregion` lines.
+The marker lines and text outside the region stay out of the page. A missing
+or malformed region logs `include-region-invalid`; a file with invalid UTF-8
+logs `include-non-text`. Both are build warnings. This plugin renders HTML and
+does not format Carve source, so `align_tables` does not apply.
+
 Under `mkdocs serve`, a change anywhere under the containment root triggers a
 rebuild, including a fragment that did not exist yet.
 
