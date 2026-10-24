@@ -34,9 +34,9 @@ dependencies = [
     # carve-lang 0.1.0 was published on 2026-08-12, so the pin is a version
     # range now.
     #
-    # The floor is 0.1.10: `lint` with an include root, which lints included
-    # files when `includes` and `lint` are both on, first ships there. Older
-    # engines raise on that call. (0.1.0 was also unsafe: it rendered
+    # The floor is 0.1.11: region includes and the include-non-text warning
+    # first ship there. Older engines cannot provide those site behaviors.
+    # (0.1.0 was also unsafe: it rendered
     # `srcset="safe.png 1x, javascript:alert(1) 2x"` unsanitized, see
     # tests/test_engine_floor.py.) The floor is a claim about the oldest engine
     # this plugin works with, so it moves when an older engine stops working,
@@ -52,7 +52,7 @@ dependencies = [
     #
     # A range is the right shape for a consumer and the wrong one for a test run,
     # so CI installs under `constraints-ci.txt` instead. See that file.
-    "carve-lang>=0.1.10,<0.2.0",
+    "carve-lang>=0.1.11,<0.2.0",
 ]
 
 [project.optional-dependencies]
