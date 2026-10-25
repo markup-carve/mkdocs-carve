@@ -8,6 +8,16 @@ own.
 
 ## Unreleased
 
+## 0.1.5 - 2026-10-26
+
+MkDocs sites now use the published Carve 0.1.12 rendering in the measured build.
+
+### Improvements
+
+- Carve task lists accept the progress, blocked, and open alias states through the current engine (#39).
+
+**Full Changelog**: https://github.com/markup-carve/mkdocs-carve/compare/0.1.4...0.1.5
+
 ## 0.1.4 - 2026-10-23
 
 - With `lint` and `includes` both on, the linter also checks every included
