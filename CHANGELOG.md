@@ -10,7 +10,11 @@ own.
 
 ## 0.1.5 - 2026-10-26
 
-MkDocs sites now use the published Carve 0.1.12 rendering in the measured build.
+MkDocs sites now render with carve-py 0.1.12, and region includes work in every supported install.
+
+### Fixes
+
+- Region includes and `include-non-text` are available in every install: the minimum carve-lang is now 0.1.11 (#38).
 
 ### Improvements
 
