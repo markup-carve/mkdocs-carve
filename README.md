@@ -11,8 +11,7 @@ pip install mkdocs-carve
 ## Usage
 
 ```yaml
-plugins:
-  - carve
+plugins: [carve]
 ```
 
 ## Documentation
