@@ -134,8 +134,9 @@ WARNING -  mkdocs_carve: page.crv: parts/frag.crv:3:1: unattached-block-attribut
 An include that cannot be expanded is reported once, by the include warning
 described under [Includes](#includes), not again by the linter.
 
-The linter also reports spellings the canonical writer replaces, and a strict
-build fails on them like any other finding:
+From the first carve-lang release after 0.1.12, the linter also reports
+spellings the canonical writer replaces, and a strict build fails on them like
+any other finding:
 
 - `thematic-break-spelling`: a thematic break written as `---`, `___` or a
   spaced run. Write `***`.
@@ -292,8 +293,9 @@ logs `include-non-text`. Both are build warnings. This plugin renders HTML and
 does not format Carve source, so `align_tables` does not apply.
 
 A CSV or TSV file becomes a table when a `{table}` line stands above a code
-include of it. `@rows` selects records and `@cols` picks columns by header
-name, in the order given:
+include of it (carve-lang releases after 0.1.12; older engines leave the
+directive literal and warn `include-unknown-option`). `@rows` selects records
+and `@cols` picks columns by header name, in the order given:
 
 ```text
 {table}
