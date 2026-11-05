@@ -49,9 +49,8 @@ This homepage is written in *Carve* (note: `*bold*` is strong,
 - `inline code`
 - [links](https://example.com)
 
-| feature | works |
-|---------|-------|
-| tables  | yes   |
+|= feature |= works |
+| tables   | yes    |
 ```
 
 ## Configuration

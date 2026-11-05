@@ -129,3 +129,11 @@ def test_symbols_resolve_in_a_real_build(site_dir_dirurls):
     assert '<abbr title="Carve">CRV</abbr>' in html
     assert "\U0001f604" in html  # :smile:, through the emoji database
     assert ":crv:" not in html  # nothing left literal
+
+
+def test_native_header_cells_render_a_table_head(site_dir_dirurls):
+    """The example tables use native `|=` header cells, not a GFM separator row."""
+    html = _read(site_dir_dirurls, "index.html")
+    assert '<th scope="col">feature</th>' in html
+    guide = _read(site_dir_dirurls, "guide/intro/index.html")
+    assert '<th scope="col">description</th>' in guide
