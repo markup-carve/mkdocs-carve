@@ -11,9 +11,17 @@ import os
 import tempfile
 from types import SimpleNamespace
 
+import carve
+import pytest
 from mkdocs.structure.files import File
 
 from mkdocs_carve.plugin import CarvePlugin, convert_carve
+
+# The unconstrained daily canary installs PyPI's latest, which predates these
+# readings until the next release; `decision_trace` arrived with them.
+pytestmark = pytest.mark.skipif(
+    not hasattr(carve, "decision_trace"), reason="needs the carve-lang release after 0.1.12"
+)
 
 
 def _plugin(docs_dir, **options):
