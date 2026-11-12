@@ -35,7 +35,4 @@
 # shapes render differently between 0.1.4 and 0.1.7 and all 95 tests pass on
 # both. tests/test_rendering_rulings.py is what gives the canary something to
 # fail on.
-#
-# Between releases the pin may be a carve-py main commit, as a direct URL; the
-# 0.1.14 cut re-points it to the release.
-carve-lang @ git+https://github.com/markup-carve/carve-py@ebce6012990797962746f5b1834d03ee01a35585
+carve-lang==0.1.13
