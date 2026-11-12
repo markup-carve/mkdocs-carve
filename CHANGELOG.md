@@ -8,14 +8,14 @@ own.
 
 ## Unreleased
 
-## 0.1.6 - 2026-11-11
+## 0.1.6 - 2026-11-12
 
-MkDocs sites can now build with carve-lang 0.1.14; the supported engine range is unchanged.
+MkDocs sites can now build with carve-lang 0.1.13; the supported engine range is unchanged.
 
 ### Improvements
 
-- Tested against carve-lang 0.1.14; the floor stays at 0.1.11 (#44). With 0.1.14, braced cell alignment (`|={>}`) renders aligned header cells, and a `{table}` line above a CSV or TSV code include renders it as a table with `@rows` and `@cols` selection.
-- With `lint` on and carve-lang 0.1.14, a `---` break logs `thematic-break-spelling` (write `***`) and a glued `|=>` logs `deprecated-cell-alignment` (write `|={>}`), so `mkdocs build --strict` can start failing after the upgrade (#44).
+- Tested against carve-lang 0.1.13; the floor stays at 0.1.11 (#44). With 0.1.13, braced cell alignment (`|={>}`) renders aligned header cells, and a `{table}` line above a CSV or TSV code include renders it as a table with `@rows` and `@cols` selection.
+- With `lint` on and carve-lang 0.1.13, a `---` break logs `thematic-break-spelling` (write `***`) and a glued `|=>` logs `deprecated-cell-alignment` (write `|={>}`), so `mkdocs build --strict` can start failing after the upgrade (#44).
 
 **Full Changelog**: https://github.com/markup-carve/mkdocs-carve/compare/0.1.5...0.1.6
 
