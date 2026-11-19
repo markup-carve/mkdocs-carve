@@ -67,7 +67,9 @@ def test_a_cross_reference_differing_only_in_case_stays_literal():
 
 
 def test_explicit_table_body_counts_are_consumed_not_published():
-    source = "{header-rows=1 body-rows=1,1}\n| H | G |\n| a | b |\n| c | d |\n"
+    # U-058, U-271: 0.2 has no header-rows on a pipe table; the head is the
+    # leading row of header cells (C2-B-178), and body-rows splits the rest.
+    source = "{body-rows=1,1}\n|= H |= G |\n| a | b |\n| c | d |\n"
     html = carve.to_html(source)
     assert "body-rows=" not in html, (
         f"carve-lang {_version()} published the row-count metadata as an HTML "

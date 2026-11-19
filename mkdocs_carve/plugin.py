@@ -36,9 +36,13 @@ Design notes
   RAW).
 
 * Include expansion is the engine's, never this plugin's. ``include_root`` is
-  handed to ``carve.render_with_includes`` as the site wrote it, so the
+  handed to the engine's ``includes`` option as the site wrote it, so the
   resolver's own refusal of a relative root is what fires. Only the default,
   derived from ``docs_dir``, is absolutized here.
+
+* The engine is Carve 0.2 (carve-py ``next2``). Raw HTML is escaped unless the
+  site sets ``raw_html``, and extensions cannot be registered yet
+  (markup-carve/carve-rs#4329), so a configured extension is a config error.
 """
 
 from __future__ import annotations
@@ -60,10 +64,20 @@ log = get_plugin_logger(__name__)
 #: Source extensions this plugin claims as Carve documentation pages.
 CARVE_SUFFIXES = (".crv",)
 
-#: Extensions enabled by default. Permalinks on headings are broadly useful for
-#: documentation sites and are the carve analog of MkDocs' Markdown ``toc``
-#: permalinks. Override via the plugin's ``extensions`` config key.
-DEFAULT_EXTENSIONS = ["heading_permalinks"]
+#: Extensions enabled by default. 0.1 enabled ``heading_permalinks`` here; the
+#: Carve 0.2 engine cannot register extensions yet (markup-carve/carve-rs#4329),
+#: so the default is the core renderer until it can.
+DEFAULT_EXTENSIONS: list = []
+
+
+def _options(symbols: Optional[Dict[str, str]], raw_html: bool) -> Dict[str, Any]:
+    """The Carve 0.2 option map for a render."""
+    options: Dict[str, Any] = {}
+    if symbols is not None:
+        options["symbols"] = symbols
+    if raw_html:
+        options["rawHtml"] = True
+    return options
 
 
 def convert_carve(
@@ -71,25 +85,24 @@ def convert_carve(
     extensions: Optional[list] = None,
     symbols: Optional[Dict[str, str]] = None,
     extension_options: Optional[Dict[str, Dict[str, Any]]] = None,
+    raw_html: bool = False,
 ) -> str:
     """Convert a Carve source string into an HTML fragment.
 
-    ``extensions`` is the list of carve extension names to enable (passed
-    straight through to ``carve.to_html``). ``None`` means the core renderer.
+    ``extensions`` is the list of carve extension names to enable. ``None``
+    means the core renderer; any name raises until the engine can register
+    extensions (markup-carve/carve-rs#4329). ``extension_options`` only comes
+    with names, so it raises the same way.
 
     ``symbols`` maps a `:name:` symbol to what it renders as. ``None`` leaves
     the engine's own default behavior, under which every `:name:` stays
     literal. Values are emitted RAW by the engine and must therefore come from
     the site's own configuration - see ``mkdocs_carve.symbols``.
+
+    ``raw_html`` lets `=html` blocks and spans through verbatim; the 0.2
+    default escapes them.
     """
-    if extension_options:
-        return carve.to_html(
-            source,
-            extensions=extensions,
-            symbols=symbols,
-            extension_options=extension_options,
-        )
-    return carve.to_html(source, extensions=extensions, symbols=symbols)
+    return carve.to_html(source, _options(symbols, raw_html), extensions=extensions)
 
 
 def convert_carve_with_includes(
@@ -99,6 +112,7 @@ def convert_carve_with_includes(
     extensions: Optional[list] = None,
     symbols: Optional[Dict[str, str]] = None,
     extension_options: Optional[Dict[str, Dict[str, Any]]] = None,
+    raw_html: bool = False,
 ) -> Dict[str, Any]:
     """Convert Carve source with `{{ path }}` includes expanded from disk.
 
@@ -106,17 +120,31 @@ def convert_carve_with_includes(
     document's identity relative to that root; every path the engine reports
     back is relative to it too, so a message shown to a reader carries no host
     directory layout.
+
+    Returns ``output`` (the HTML), ``warnings`` (the engine's include
+    diagnostics) and ``suppressed_warnings``.
     """
-    options = {"extension_options": extension_options} if extension_options else {}
-    return carve.render_with_includes(
-        source,
-        include_root,
-        target="html",
-        extensions=extensions,
-        symbols=symbols,
-        source_path=source_path,
-        **options,
-    )
+    if extensions:
+        carve.to_html("", extensions=extensions)
+    options = _options(symbols, raw_html)
+    options["includes"] = {"root": include_root, "file": source_path}
+    result = carve.render(source, options, diagnostics=True)
+    warnings = [
+        {"rule": d["code"], "message": d["message"], "file": d.get("file")}
+        for d in result.get("diagnostics", [])
+        if d["code"].startswith("include-") and d.get("channel") == "parse"
+    ]
+    return {
+        "output": result["html"],
+        "warnings": warnings,
+        "suppressed_warnings": result.get("suppressedDiagnostics", 0),
+    }
+
+
+def position(text: str, offset: int) -> tuple[int, int]:
+    """A 1-based line and character column for a UTF-8 byte offset in ``text``."""
+    before = text.encode("utf-8")[: max(offset, 0)].decode("utf-8", errors="ignore")
+    return before.count("\n") + 1, len(before) - (before.rfind("\n") + 1) + 1
 
 
 def split_extensions(
@@ -202,6 +230,9 @@ class CarvePlugin(BasePlugin):
         ("includes", config_options.Type(bool, default=False)),
         # An explicit containment root. Left unset, the root is `docs_dir`.
         ("include_root", config_options.Type(str, default=None)),
+        # Off by default, the Carve 0.2 default: `=html` blocks and spans are
+        # escaped unless the site's own authors write every page.
+        ("raw_html", config_options.Type(bool, default=False)),
     )
 
     #: Resolved in ``on_config`` and reused for every page. ``None`` means
@@ -274,7 +305,7 @@ class CarvePlugin(BasePlugin):
         configured = self.config["include_root"]
         root = configured if configured else os.path.abspath(config["docs_dir"])
         try:
-            carve.render_with_includes("", root)
+            carve.render("", {"includes": {"root": root}})
         except ValueError as error:
             raise ValidationError(f"include_root: {error}") from error
         return root
@@ -395,15 +426,17 @@ class CarvePlugin(BasePlugin):
                 extensions=extensions,
                 symbols=self._symbols,
                 extension_options=options,
+                raw_html=self.config["raw_html"],
             )
 
         result = convert_carve_with_includes(
             markdown,
             self._include_root,
-            os.path.relpath(abs_src_path, self._include_root),
+            os.path.relpath(abs_src_path, self._include_root).replace(os.sep, "/"),
             extensions=extensions,
             symbols=self._symbols,
             extension_options=options,
+            raw_html=self.config["raw_html"],
         )
         self._report(result, src_uri)
         return result["output"]
@@ -421,37 +454,37 @@ class CarvePlugin(BasePlugin):
         that stays literal is left to ``_report``, which already warns about
         it from the render, so it is not reported twice.
         """
-        if source_path is None:
-            findings = carve.lint(source, extensions=extensions)
-        else:
-            findings = carve.lint(
-                source,
-                extensions=extensions,
-                include_root=self._include_root,
-                source_path=source_path,
-            )
-        for warning in findings:
+        if extensions:
+            carve.to_html("", extensions=extensions)
+        options: Dict[str, Any] = {}
+        if source_path is not None:
+            source_path = source_path.replace(os.sep, "/")
+            options["includes"] = {"root": self._include_root, "file": source_path}
+        for warning in carve.lint(source, options)["diagnostics"]:
             origin = warning.get("file")
-            if source_path is not None and warning["rule"].startswith("include-"):
+            if source_path is not None and warning["code"].startswith("include-"):
                 continue
-            position = f"{warning['line']}:{warning['column']}"
+            text = source
             if origin and origin != source_path:
-                sites = ", ".join(
-                    f"{site['file']}:{site['line']}:{site['column']}"
-                    for site in warning["includedBy"]
-                )
+                with open(
+                    os.path.join(self._include_root, origin), encoding="utf-8"
+                ) as handle:
+                    text = handle.read()
+            offset = warning.get("range", {}).get("startOffset", 0)
+            line, column = position(text, offset)
+            if text is not source:
                 log.warning(
-                    "%s: %s:%s: %s: %s (included at %s)",
+                    "%s: %s:%d:%d: %s: %s",
                     src_uri,
                     origin,
-                    position,
-                    warning["rule"],
+                    line,
+                    column,
+                    warning["code"],
                     warning["message"],
-                    sites,
                 )
                 continue
             log.warning(
-                "%s:%s: %s: %s", src_uri, position, warning["rule"], warning["message"]
+                "%s:%d:%d: %s: %s", src_uri, line, column, warning["code"], warning["message"]
             )
 
     def _report(self, result: Dict[str, Any], src_uri: str) -> None:
@@ -463,14 +496,6 @@ class CarvePlugin(BasePlugin):
         suppressed = result["suppressed_warnings"]
         if suppressed:
             log.warning("%s: %d further include warnings suppressed", src_uri, suppressed)
-        # The engine reports a containment denial and a missing file as one
-        # warning so a page cannot probe the filesystem (spec I7). The class
-        # that was collapsed is on the dependency, for the build's own log.
-        for dependency in result["dependencies"]:
-            if dependency["denial"]:
-                log.info(
-                    "%s: include %s: %s", src_uri, dependency["id"], dependency["denial"]
-                )
 
     def on_serve(self, server, *, config, builder):
         """Rebuild when anything under the containment root changes.
