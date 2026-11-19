@@ -18,9 +18,11 @@ from mkdocs.structure.files import File
 from mkdocs_carve.plugin import CarvePlugin, convert_carve
 
 # The unconstrained daily canary installs PyPI's latest, which predates these
-# readings until the next release; `decision_trace` arrived with them.
+# readings until the next release; `decision_trace` arrived with them, and the
+# Carve 0.2 binding (which has `call` instead) carries them too.
 pytestmark = pytest.mark.skipif(
-    not hasattr(carve, "decision_trace"), reason="needs the carve-lang release after 0.1.12"
+    not (hasattr(carve, "decision_trace") or hasattr(carve, "call")),
+    reason="needs the carve-lang release after 0.1.12",
 )
 
 
@@ -59,7 +61,8 @@ def test_braced_alignment_aligns_the_column():
 
 def test_glued_alignment_still_renders_but_lint_reports_it(caplog):
     source = "|=> Price |= Name |\n| 1 | a |\n"
-    assert 'style="text-align: right;"' in convert_carve(source)
+    # U-056: in 0.2 the glued prefix is cell text, not an alignment.
+    assert "&gt; Price</th>" in convert_carve(source)
     messages = _lint_messages(caplog, source)
     assert any("page.crv:1:" in m and "deprecated-cell-alignment" in m for m in messages), messages
 
