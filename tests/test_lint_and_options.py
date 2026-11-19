@@ -17,7 +17,7 @@ from mkdocs_carve.plugin import CarvePlugin, split_extensions
 UNATTACHED = "para\n\n{#id .cls}\n"
 
 #: The Carve 0.2 engine cannot register extensions yet.
-EXT_GAP = "extension registration not available yet in the Carve 0.2 engine: markup-carve/carve-rs#4329"
+EXT_GAP = "0.1 extension behavior awaits markup-carve/carve-py#130 and markup-carve/carve-rs#4342"
 
 
 def _plugin(**options):
@@ -163,7 +163,6 @@ def test_an_unknown_option_is_refused_before_any_page():
 
 
 def test_an_unknown_extension_name_is_refused_before_any_page():
-    pytest.skip(EXT_GAP)
     plugin = CarvePlugin()
     plugin.load_config({"extensions": ["no_such_extension"]})
     with pytest.raises(ValidationError, match="no_such_extension"):
@@ -251,5 +250,5 @@ def test_included_files_are_not_linted_while_includes_are_off(tmp_path, caplog):
 def test_a_configured_extension_is_refused_until_the_engine_has_it():
     plugin = CarvePlugin()
     plugin.load_config({"extensions": ["heading_permalinks"]})
-    with pytest.raises(ValidationError, match="not available yet"):
+    with pytest.raises(ValidationError, match="not a standard extension"):
         plugin.on_config({"docs_dir": os.getcwd()})
