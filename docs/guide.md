@@ -57,7 +57,7 @@ This homepage is written in *Carve* (note: `*bold*` is strong,
 
 | Option       | Type                | Default                  | Description |
 |--------------|---------------------|--------------------------|-------------|
-| `extensions` | list of names or `{name: options}` | `[]` | Carve extensions enabled for every Carve page, each optionally with its options. The Carve 0.2 engine cannot register extensions yet ([carve-rs#4329](https://github.com/markup-carve/carve-rs/issues/4329)), so any name is a configuration error for now; 0.1 enabled `heading_permalinks` by default. See [Extension options](#extension-options). |
+| `extensions` | list of names or `{name: options}` | `[]` | Carve extensions enabled for every Carve page, each optionally with its options. The Carve 0.2 Python binding cannot register host callbacks or transforms yet ([carve-py#130](https://github.com/markup-carve/carve-py/issues/130)), so the old 0.1 extension names are configuration errors for now; 0.1 enabled `heading_permalinks` by default. See [Extension options](#extension-options). |
 | `raw_html`   | bool                | `false`                  | Emit `=html` blocks and spans verbatim. Carve 0.2 escapes them by default; turn it on only when the site's own authors write every page. |
 | `lint`       | bool                | `false`                  | Report lint findings on Carve pages as build warnings, so `mkdocs build --strict` fails on them. See [Lint](#lint). |
 | `emoji`      | `none` \| `unicode` \| `twemoji` | `none` | Resolve `:smile:` and friends through the emoji database your Markdown pages already use. See [Symbols and emoji](#symbols-and-emoji). |

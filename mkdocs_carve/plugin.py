@@ -41,8 +41,8 @@ Design notes
   derived from ``docs_dir``, is absolutized here.
 
 * The engine is Carve 0.2 (carve-py ``next2``). Raw HTML is escaped unless the
-  site sets ``raw_html``, and extensions cannot be registered yet
-  (markup-carve/carve-rs#4329), so a configured extension is a config error.
+  site sets ``raw_html``. The old 0.1 extension names are refused while host
+  callbacks and transforms wait on markup-carve/carve-py#130.
 """
 
 from __future__ import annotations
@@ -65,8 +65,8 @@ log = get_plugin_logger(__name__)
 CARVE_SUFFIXES = (".crv",)
 
 #: Extensions enabled by default. 0.1 enabled ``heading_permalinks`` here; the
-#: Carve 0.2 engine cannot register extensions yet (markup-carve/carve-rs#4329),
-#: so the default is the core renderer until it can.
+#: 0.2 heading permalinks are a host transform, pending in carve-py#130.
+#: Until then the default is the core renderer.
 DEFAULT_EXTENSIONS: list = []
 
 
@@ -90,9 +90,9 @@ def convert_carve(
     """Convert a Carve source string into an HTML fragment.
 
     ``extensions`` is the list of carve extension names to enable. ``None``
-    means the core renderer; any name raises until the engine can register
-    extensions (markup-carve/carve-rs#4329). ``extension_options`` only comes
-    with names, so it raises the same way.
+    means the core renderer. The 0.1 names still used by MkDocs configurations
+    are refused until their 0.2 host callbacks and transforms are available
+    (markup-carve/carve-py#130). ``extension_options`` follows the names.
 
     ``symbols`` maps a `:name:` symbol to what it renders as. ``None`` leaves
     the engine's own default behavior, under which every `:name:` stays
