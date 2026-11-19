@@ -11,9 +11,9 @@ coexist with `.md` pages in the same `docs/` tree.
 
 ## Installation notes
 
-The Carve engine (`carve-lang`, the PyO3 binding over carve-rs) is installed
-from PyPI as a normal dependency. It ships prebuilt abi3 wheels for Linux, macOS
-and Windows, so no Rust toolchain is needed.
+The Carve engine (`carve-lang`, the PyO3 binding over carve-rs) is the
+unreleased Carve 0.2 binding on this branch, pinned to a carve-py `next2`
+commit. pip builds it from source, so installing needs a Rust toolchain.
 
 ## Usage
 
@@ -40,7 +40,7 @@ nav:
 A Carve page, `docs/index.crv`:
 
 ```
-# Carve in MkDocs
+= Carve in MkDocs
 
 This homepage is written in *Carve* (note: `*bold*` is strong,
 `/italic/` is emphasis in Carve).
@@ -57,14 +57,15 @@ This homepage is written in *Carve* (note: `*bold*` is strong,
 
 | Option       | Type                | Default                  | Description |
 |--------------|---------------------|--------------------------|-------------|
-| `extensions` | list of names or `{name: options}` | `["heading_permalinks"]` | Carve extensions enabled for every Carve page, each optionally with its options. Set to `[]` to use the core renderer only. See [Extension options](#extension-options). |
+| `extensions` | list of names or `{name: options}` | `[]` | Carve extensions enabled for every Carve page, each optionally with its options. The Carve 0.2 engine cannot register extensions yet ([carve-rs#4329](https://github.com/markup-carve/carve-rs/issues/4329)), so any name is a configuration error for now; 0.1 enabled `heading_permalinks` by default. See [Extension options](#extension-options). |
+| `raw_html`   | bool                | `false`                  | Emit `=html` blocks and spans verbatim. Carve 0.2 escapes them by default; turn it on only when the site's own authors write every page. |
 | `lint`       | bool                | `false`                  | Report lint findings on Carve pages as build warnings, so `mkdocs build --strict` fails on them. See [Lint](#lint). |
 | `emoji`      | `none` \| `unicode` \| `twemoji` | `none` | Resolve `:smile:` and friends through the emoji database your Markdown pages already use. See [Symbols and emoji](#symbols-and-emoji). |
 | `symbols`    | mapping, or a path  | *(none)*                 | Your own `:name:` symbols, written inline or kept in a JSON file whose path is given here. **Values are emitted raw** - see the warning below. |
 | `includes`   | bool                | `false`                  | Expand `{{ path }}` includes for file-backed pages. Off leaves a directive literal. See [Includes](#includes). |
 | `include_root` | absolute path     | `docs_dir`               | The containment root includes resolve within. Must be absolute; a relative value is refused, not resolved. |
 
-Example enabling additional Carve extensions:
+Once the engine can register them, enabling Carve extensions looks like this:
 
 ```yaml
 plugins:
@@ -120,31 +121,25 @@ WARNING -  mkdocs_carve: guide/intro.crv:3:1: unattached-block-attribute: This b
 ```
 
 Each warning names the page, line, column and rule id. `mkdocs build --strict`
-treats them like any other warning and fails the build. The linter reads the
-same `extensions` list the pages render with.
+treats them like any other warning and fails the build. Without `includes`,
+every `{{ path }}` directive is reported as `include-no-resolver`.
 
 With `includes: true` as well, the linter follows the includes and checks every
-included Carve file too. A finding inside one names the page, the included file
-and where it was included:
+included Carve file too. A finding inside one names the page and the included
+file. The Carve 0.2 diagnostic carries no include chain, so the 0.1
+"(included at ...)" suffix is gone:
 
 ```
-WARNING -  mkdocs_carve: page.crv: parts/frag.crv:3:1: unattached-block-attribute: ... (included at page.crv:3:1)
+WARNING -  mkdocs_carve: page.crv: parts/frag.crv:3:1: unattached-block-attribute: ...
 ```
 
 An include that cannot be expanded is reported once, by the include warning
 described under [Includes](#includes), not again by the linter.
 
-From carve-lang 0.1.13, the linter also reports
-spellings the canonical writer replaces, and a strict build fails on them like
-any other finding:
-
-- `thematic-break-spelling`: a thematic break written as `---`, `___` or a
-  spaced run. Write `***`.
-- `deprecated-cell-alignment`: a table cell aligned with the glued marker
-  (`|=>`, `|<`). Put the alignment in braces instead (`|={>}`, `|{<}`). The
-  glued form still renders through every 0.1.x engine.
-
-`carve fmt` from the Carve CLI rewrites both.
+The linter also reports spellings the canonical writer replaces, and a strict
+build fails on them like any other finding, for example
+`thematic-break-spelling` for a thematic break written as `---`. `carve fmt`
+from the Carve CLI rewrites them.
 
 
 ### Highlighting Carve code blocks
@@ -259,7 +254,7 @@ the containment root. The root is `docs_dir` unless `include_root` names another
 one, and an include that would leave it is not expanded.
 
 `include_root` must be an **absolute** path. A relative one is refused rather
-than resolved, because every way of resolving it ends at the directory the build
+than resolved (C2-N-014), because every way of resolving it ends at the directory the build
 happened to run from, which is not a root anyone chose. Absolutize it yourself if
 you need to - in `mkdocs.yml` that means writing the path out, or setting the
 value from your own build script.
@@ -271,11 +266,11 @@ plugins:
       include_root: /srv/shared/fragments
 ```
 
-A target that cannot be read is reported as a build warning naming the page, and
-the directive is left as written. The warning does not say whether the file was
-missing or refused by containment: both report `include-unresolved`, so a page
-cannot be used to probe the filesystem. Which one it was is in the build log at
-`INFO`.
+A target that cannot be read is reported as a build warning naming the page and
+the cause, and the directive is left as written: `include-not-found`,
+`include-outside-root`, `include-cycle` and the other codes of Carve 0.2
+(C2-N-061). A directive inside a sentence is text in 0.2 and is never expanded
+(C2-N-002).
 
 Select a named region with `@region`. Add `@code:python` when the target is
 source code. For example, `index.crv` can contain:
@@ -293,8 +288,7 @@ logs `include-non-text`. Both are build warnings. This plugin renders HTML and
 does not format Carve source, so `align_tables` does not apply.
 
 A CSV or TSV file becomes a table when a `{table}` line stands above a code
-include of it (carve-lang 0.1.13 and later; older engines leave the
-directive literal and warn `include-unknown-option`). `@rows` selects records
+include of it. `@rows` selects records
 and `@cols` picks columns by header name, in the order given:
 
 ```text

@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, next2]
   pull_request:
-    branches: [main]
+    branches: [main, next2]
 
 # Each job declares timeout-minutes so a hung step fails fast
 # instead of inheriting the 360-minute GitHub default.

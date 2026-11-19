@@ -85,7 +85,9 @@ def test_directory_urls_homepage_content_and_theme(site_dir_dirurls):
     assert "<strong>mkdocs-carve</strong>" in html
     assert "<table>" in html
     assert "<li>Carve supports lists</li>" in html
-    assert 'class="permalink"' in html  # default extension active
+    # heading_permalinks waits on markup-carve/carve-rs#4329, so the example
+    # site enables no extension on the Carve 0.2 engine.
+    assert 'class="permalink"' not in html
 
 
 def test_directory_urls_nested_and_md(site_dir_dirurls):

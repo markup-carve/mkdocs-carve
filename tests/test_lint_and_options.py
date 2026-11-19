@@ -16,6 +16,9 @@ from mkdocs_carve.plugin import CarvePlugin, split_extensions
 
 UNATTACHED = "para\n\n{#id .cls}\n"
 
+#: The Carve 0.2 engine cannot register extensions yet.
+EXT_GAP = "extension registration not available yet in the Carve 0.2 engine: markup-carve/carve-rs#4329"
+
 
 def _plugin(**options):
     plugin = CarvePlugin()
@@ -62,6 +65,7 @@ def test_lint_never_touches_markdown_pages(caplog):
 
 
 def test_lint_reads_the_configured_extensions(monkeypatch):
+    pytest.skip(EXT_GAP)
     import carve
 
     seen = []
@@ -133,6 +137,7 @@ def test_a_malformed_entry_is_a_configuration_error(entry):
 
 
 def test_wikilink_options_reach_the_engine():
+    pytest.skip(EXT_GAP)
     plugin = _plugin(
         extensions=[{"wikilinks": {"css_class": "wl", "new_window": True}}]
     )
@@ -142,6 +147,7 @@ def test_wikilink_options_reach_the_engine():
 
 
 def test_options_on_the_default_extension_change_its_output():
+    pytest.skip(EXT_GAP)
     plugin = _plugin(extensions=[{"heading_permalinks": {"symbol": "#"}}])
     out = _render(plugin, "# Hi\n")
     assert ">#</a>" in out
@@ -149,6 +155,7 @@ def test_options_on_the_default_extension_change_its_output():
 
 
 def test_an_unknown_option_is_refused_before_any_page():
+    pytest.skip(EXT_GAP)
     plugin = CarvePlugin()
     plugin.load_config({"extensions": [{"wikilinks": {"url_template": "/w/{}"}}]})
     with pytest.raises(ValidationError, match="url_template"):
@@ -156,6 +163,7 @@ def test_an_unknown_option_is_refused_before_any_page():
 
 
 def test_an_unknown_extension_name_is_refused_before_any_page():
+    pytest.skip(EXT_GAP)
     plugin = CarvePlugin()
     plugin.load_config({"extensions": ["no_such_extension"]})
     with pytest.raises(ValidationError, match="no_such_extension"):
@@ -163,6 +171,7 @@ def test_an_unknown_extension_name_is_refused_before_any_page():
 
 
 def test_options_reach_the_engine_on_the_include_path(tmp_path):
+    pytest.skip(EXT_GAP)
     docs = tmp_path / "docs"
     docs.mkdir()
     (docs / "frag.crv").write_text("[[Foo Bar]]\n", encoding="utf-8")
@@ -183,6 +192,7 @@ def test_options_reach_the_engine_on_the_include_path(tmp_path):
 
 
 def test_an_option_of_the_wrong_type_names_the_option_not_the_engine():
+    pytest.skip(EXT_GAP)
     plugin = CarvePlugin()
     plugin.load_config({"extensions": [{"wikilinks": {"new_window": "false"}}]})
     with pytest.raises(ValidationError) as caught:
@@ -212,9 +222,10 @@ def test_a_finding_inside_an_included_file_names_the_file_and_the_site(tmp_path,
     with caplog.at_level(logging.WARNING):
         plugin.on_page_markdown(source, page=page, config={}, files=None)
     messages = [r.getMessage() for r in caplog.records]
+    # The 0.2 diagnostic carries no include chain, so the 0.1
+    # "(included at page.crv:3:1)" suffix is gone.
     assert any(
         "page.crv: parts/frag.crv:3:1: unattached-block-attribute: " in m
-        and m.endswith("(included at page.crv:3:1)")
         for m in messages
     ), messages
 
@@ -223,7 +234,8 @@ def test_an_unresolved_include_is_warned_once_not_twice(tmp_path, caplog):
     plugin, page, source = _include_site(tmp_path)
     with caplog.at_level(logging.WARNING):
         plugin.on_page_markdown(source, page=page, config={}, files=None)
-    unresolved = [r for r in caplog.records if "include-unresolved" in r.getMessage()]
+    # C2-N-061: 0.2 reports the cause, include-not-found, not include-unresolved.
+    unresolved = [r for r in caplog.records if "include-not-found" in r.getMessage()]
     assert len(unresolved) == 1, [r.getMessage() for r in unresolved]
 
 
@@ -231,4 +243,13 @@ def test_included_files_are_not_linted_while_includes_are_off(tmp_path, caplog):
     plugin, page, source = _include_site(tmp_path, includes=False)
     with caplog.at_level(logging.WARNING):
         plugin.on_page_markdown(source, page=page, config={}, files=None)
-    assert not [r for r in caplog.records if "frag.crv" in r.getMessage()]
+    # C2-N-003: each directive is reported as include-no-resolver, naming its
+    # path; no finding is positioned inside the included file.
+    assert not [r for r in caplog.records if "frag.crv:" in r.getMessage()]
+
+
+def test_a_configured_extension_is_refused_until_the_engine_has_it():
+    plugin = CarvePlugin()
+    plugin.load_config({"extensions": ["heading_permalinks"]})
+    with pytest.raises(ValidationError, match="not available yet"):
+        plugin.on_config({"docs_dir": os.getcwd()})
