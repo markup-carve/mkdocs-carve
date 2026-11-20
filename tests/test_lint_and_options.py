@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -323,7 +324,6 @@ def test_lint_receives_the_engine_extensions(monkeypatch):
         ("heading-numbers", "# Hi\n", '<span class="section-number">1</span>'),
         ("heading_level_shift", "# Hi\n", "<h2>Hi</h2>"),
         ("table_of_contents", "# Hi\n", '<nav class="toc"'),
-        ("toc", "# Hi\n", '<nav class="toc"'),
         ("external_links", "[x](https://example.org)\n", 'target="_blank"'),
         ("autolink", "See https://example.org\n", '<a href="https://example.org">'),
         ("carve.headingReference", "# Hi\n", "<h1>Hi</h1>"),
@@ -333,6 +333,12 @@ def test_lint_receives_the_engine_extensions(monkeypatch):
 def test_each_navigation_extension_reaches_the_engine(name, source, visible):
     out = _render(_plugin(extensions=[name]), source)
     assert visible in out
+
+
+def test_the_0_1_toc_name_places_the_table_where_the_block_stands():
+    out = _render(_plugin(extensions=["toc"]), "# A\n\n::: toc\n:::\n\n## B\n")
+    assert re.search(r'<h1>A</h1>\s*<nav class="toc"', out)
+    assert not out.startswith("<nav")
 
 
 def test_the_graphviz_name_claims_the_dot_fence_as_in_0_1():
