@@ -31,7 +31,7 @@ dependencies = [
     # `next2` commit and built from source (Rust and maturin are needed). A
     # direct-URL dependency cannot be published to PyPI, so this branch is not
     # releasable until carve-lang 0.2 is; the range comes back then.
-    "carve-lang @ git+https://github.com/markup-carve/carve-py@ae2988d4b3443836fc51a3c4a719a7bbd4166cde",
+    "carve-lang @ git+https://github.com/markup-carve/carve-py@791e2061eb949b3fdc6193892814e31ccb1f3e07",
 ]
 
 [project.optional-dependencies]
