@@ -140,11 +140,6 @@ unknown option, or a value of the wrong type, is a configuration error when the
 build starts, and the error names the option. The lint pass receives the names
 only.
 
-The Carve 0.2 Python binding takes no options for the navigation extensions yet
-(heading permalinks, table of contents and the rest), so an option on one of
-them is a configuration error
-([carve-py#145](https://github.com/markup-carve/carve-py/issues/145)).
-
 ### Lint
 
 Carve's linter reports constructs that parse and render, but not the way the

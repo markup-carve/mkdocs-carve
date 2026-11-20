@@ -17,8 +17,6 @@ from mkdocs_carve.plugin import CarvePlugin, split_extensions
 
 UNATTACHED = "para\n\n{#id .cls}\n"
 
-#: The 0.2 Python binding takes no options for the navigation extensions.
-NAV_OPTIONS_GAP = "carve-py next2 refuses navigation extension options (markup-carve/carve-py#145)"
 LINT_SHAPE_GAP = (
     "0.1 carve.lint(source, extensions=) call shape; 0.2 reads extensions from the "
     "options (test_lint_receives_the_engine_extensions)"
@@ -151,7 +149,6 @@ def test_wikilink_options_reach_the_engine():
 
 
 def test_options_on_the_default_extension_change_its_output():
-    pytest.skip(NAV_OPTIONS_GAP)
     plugin = _plugin(extensions=[{"heading_permalinks": {"symbol": "#"}}])
     out = _render(plugin, "# Hi\n")
     assert ">#</a>" in out
