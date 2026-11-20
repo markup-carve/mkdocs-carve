@@ -8,6 +8,20 @@ own.
 
 ## Unreleased
 
+### Changed
+
+- Port to Carve 0.2: pages render and lint through the carve-py `next2` Carve
+  0.2 binding, pinned by commit. Page HTML follows 0.2 (see the spec's
+  `UPGRADING.md`).
+- Raw HTML is escaped by default. The new `raw_html` setting emits it verbatim.
+- `extensions` defaults to `[]`; `heading_permalinks` is no longer on by
+  default. A configured extension is a configuration error until the engine can
+  register extensions (markup-carve/carve-rs#4329).
+- Include warnings name the cause (`include-not-found`, `include-outside-root`,
+  ...) instead of one `include-unresolved`. Lint warnings for included files
+  drop the "(included at ...)" suffix; without `includes`, lint reports each
+  directive as `include-no-resolver`.
+
 ## 0.1.6 - 2026-11-12
 
 MkDocs sites can now build with carve-lang 0.1.13; the supported engine range is unchanged.

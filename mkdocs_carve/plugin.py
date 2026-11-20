@@ -36,9 +36,13 @@ Design notes
   RAW).
 
 * Include expansion is the engine's, never this plugin's. ``include_root`` is
-  handed to ``carve.render_with_includes`` as the site wrote it, so the
+  handed to the engine's ``includes`` option as the site wrote it, so the
   resolver's own refusal of a relative root is what fires. Only the default,
   derived from ``docs_dir``, is absolutized here.
+
+* The engine is Carve 0.2 (carve-py ``next2``). Raw HTML is escaped unless the
+  site sets ``raw_html``. Extensions are the engine's 0.2 standard
+  extensions; a 0.1 name is read as its 0.2 counterpart.
 """
 
 from __future__ import annotations
@@ -46,6 +50,7 @@ from __future__ import annotations
 import json
 import os
 import posixpath
+import re
 from typing import Any, Dict, Optional
 
 import carve
@@ -60,10 +65,107 @@ log = get_plugin_logger(__name__)
 #: Source extensions this plugin claims as Carve documentation pages.
 CARVE_SUFFIXES = (".crv",)
 
-#: Extensions enabled by default. Permalinks on headings are broadly useful for
-#: documentation sites and are the carve analog of MkDocs' Markdown ``toc``
-#: permalinks. Override via the plugin's ``extensions`` config key.
-DEFAULT_EXTENSIONS = ["heading_permalinks"]
+#: Extensions enabled by default.
+DEFAULT_EXTENSIONS: list = ["heading_permalinks"]
+
+#: The 0.2 standard extensions each 0.1 extension name stands for. A name
+#: missing here and not starting with ``carve.`` reaches the engine as written.
+LEGACY_EXTENSIONS: Dict[str, list] = {
+    "autolink": ["carve.autolink"],
+    "citations": ["carve.references"],
+    "code-callouts": ["carve.codeCallouts"],
+    "code-group": ["carve.codeGroup"],
+    "color-swatch": ["carve.colorSwatch"],
+    "details": ["carve.details"],
+    "external-links": ["carve.externalLinks"],
+    "fenced-render": ["carve.fencedRender.mermaid"],
+    "fenced-render-abc": ["carve.fencedRender.abc"],
+    "fenced-render-chart": ["carve.fencedRender.chart"],
+    "fenced-render-d2": ["carve.fencedRender.d2"],
+    "fenced-render-graphviz": ["carve.fencedRender.graphviz", "carve.fencedRender.dot"],
+    "fenced-render-plantuml": ["carve.fencedRender.plantuml", "carve.fencedRender.puml"],
+    "fenced-render-vega-lite": ["carve.fencedRender.vega-lite"],
+    "fenced-render-wavedrom": ["carve.fencedRender.wavedrom"],
+    "glossary": ["carve.glossary"],
+    "heading-level-shift": ["carve.headingLevelShift"],
+    "heading-numbers": ["carve.headingNumbers"],
+    "heading-permalinks": ["carve.headingPermalinks"],
+    "heading-reference": ["carve.headingReference"],
+    "img-fence": ["carve.imgFence.img", "carve.imgFence.image"],
+    "index": ["carve.index"],
+    "link-policy": ["carve.linkPolicy"],
+    "list-table": ["carve.listTable"],
+    "math-block": ["carve.mathBlock"],
+    "semantic-span": ["carve.semanticSpan"],
+    "smart-quotes": ["carve.smartQuotes"],
+    "spoiler": ["carve.spoiler", "carve.spoilerBlock"],
+    "tab-normalize": ["carve.tabNormalize"],
+    "table-of-contents": ["carve.toc"],
+    "tabs": ["carve.tabs"],
+    "toc": ["carve.tocPlacement"],
+    "wikilinks": ["carve.wiki"],
+}
+
+#: Standard extensions without a standard renderer in the engine.
+_NO_RENDERER = {"carve.cite"}
+
+
+def _targets(name: str) -> list:
+    """The 0.2 standard extension names one configured ``name`` stands for."""
+    if name.startswith("carve."):
+        return [name]
+    return LEGACY_EXTENSIONS.get(name.replace("_", "-"), [name])
+
+
+def engine_extensions(names: Optional[list]) -> list:
+    """The 0.2 standard extension names for the configured ``names``.
+
+    0.1 names are accepted in either spelling (``math_block``, ``math-block``).
+    """
+    resolved: list = []
+    for name in names or []:
+        resolved.extend(t for t in _targets(name) if t not in resolved)
+    return resolved
+
+
+def _entries(
+    names: Optional[list], options: Optional[Dict[str, Dict[str, Any]]]
+) -> list:
+    """The engine ``extensions`` list: a name, or a configured entry with options."""
+    configured: Dict[str, Dict[str, Any]] = {}
+    for name, values in (options or {}).items():
+        for target in _targets(name):
+            configured[target] = values
+    return [
+        {"name": n, "options": configured[n]} if n in configured else n
+        for n in engine_extensions(names)
+    ]
+
+
+def _extension_options(entries: list) -> Dict[str, Any]:
+    """The engine options that enable ``entries`` with their standard renderers."""
+    if not entries:
+        return {}
+    names = [e if isinstance(e, str) else e["name"] for e in entries]
+    return {
+        "extensions": entries,
+        "renderers": {n: "standard" for n in names if n not in _NO_RENDERER},
+    }
+
+
+def _options(
+    symbols: Optional[Dict[str, str]],
+    raw_html: bool,
+    extensions: Optional[list] = None,
+    extension_options: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """The Carve 0.2 option map for a render."""
+    options: Dict[str, Any] = _extension_options(_entries(extensions, extension_options))
+    if symbols is not None:
+        options["symbols"] = symbols
+    if raw_html:
+        options["rawHtml"] = True
+    return options
 
 
 def convert_carve(
@@ -71,25 +173,25 @@ def convert_carve(
     extensions: Optional[list] = None,
     symbols: Optional[Dict[str, str]] = None,
     extension_options: Optional[Dict[str, Dict[str, Any]]] = None,
+    raw_html: bool = False,
 ) -> str:
     """Convert a Carve source string into an HTML fragment.
 
-    ``extensions`` is the list of carve extension names to enable (passed
-    straight through to ``carve.to_html``). ``None`` means the core renderer.
+    ``extensions`` is the list of carve extension names to enable, each with
+    its standard renderer. ``None`` means the core renderer. A 0.1 name is read
+    as its 0.2 counterpart (``LEGACY_EXTENSIONS``). ``extension_options`` maps a
+    configured name to its options, which reach the engine as written.
 
     ``symbols`` maps a `:name:` symbol to what it renders as. ``None`` leaves
     the engine's own default behavior, under which every `:name:` stays
     literal. Values are emitted RAW by the engine and must therefore come from
     the site's own configuration - see ``mkdocs_carve.symbols``.
+
+    ``raw_html`` lets `=html` blocks and spans through verbatim; the 0.2
+    default escapes them.
     """
-    if extension_options:
-        return carve.to_html(
-            source,
-            extensions=extensions,
-            symbols=symbols,
-            extension_options=extension_options,
-        )
-    return carve.to_html(source, extensions=extensions, symbols=symbols)
+    options = _options(symbols, raw_html, extensions, extension_options)
+    return carve.render(source, options)["html"]
 
 
 def convert_carve_with_includes(
@@ -99,6 +201,7 @@ def convert_carve_with_includes(
     extensions: Optional[list] = None,
     symbols: Optional[Dict[str, str]] = None,
     extension_options: Optional[Dict[str, Dict[str, Any]]] = None,
+    raw_html: bool = False,
 ) -> Dict[str, Any]:
     """Convert Carve source with `{{ path }}` includes expanded from disk.
 
@@ -106,17 +209,45 @@ def convert_carve_with_includes(
     document's identity relative to that root; every path the engine reports
     back is relative to it too, so a message shown to a reader carries no host
     directory layout.
+
+    Returns ``output`` (the HTML), ``warnings`` (the engine's include
+    diagnostics) and ``suppressed_warnings``.
     """
-    options = {"extension_options": extension_options} if extension_options else {}
-    return carve.render_with_includes(
-        source,
-        include_root,
-        target="html",
-        extensions=extensions,
-        symbols=symbols,
-        source_path=source_path,
-        **options,
-    )
+    options = _options(symbols, raw_html, extensions, extension_options)
+    options["includes"] = {"root": include_root, "file": source_path}
+    result = carve.render(source, options, diagnostics=True)
+    warnings = [
+        {"rule": d["code"], "message": d["message"], "file": d.get("file")}
+        for d in result.get("diagnostics", [])
+        if d["code"].startswith("include-") and d.get("channel") == "parse"
+    ]
+    return {
+        "output": result["html"],
+        "warnings": warnings,
+        "suppressed_warnings": result.get("suppressedDiagnostics", 0),
+    }
+
+
+def _user_spelling(message: str, options: Optional[Dict[str, Dict[str, Any]]]) -> str:
+    """``message`` with each engine option name in the spelling ``mkdocs.yml`` used.
+
+    The engine reports ``newWindow`` for a ``new_window`` the site wrote.
+    """
+    for values in (options or {}).values():
+        for key in values:
+            if not isinstance(key, str):
+                continue
+            head, *rest = key.split("_")
+            camel = head + "".join(part.title() for part in rest)
+            if camel != key:
+                message = re.sub(rf"\b{re.escape(camel)}\b", lambda _: key, message)
+    return message
+
+
+def position(text: str, offset: int) -> tuple[int, int]:
+    """A 1-based line and character column for a UTF-8 byte offset in ``text``."""
+    before = text.encode("utf-8")[: max(offset, 0)].decode("utf-8", errors="ignore")
+    return before.count("\n") + 1, len(before) - (before.rfind("\n") + 1) + 1
 
 
 def split_extensions(
@@ -202,6 +333,9 @@ class CarvePlugin(BasePlugin):
         ("includes", config_options.Type(bool, default=False)),
         # An explicit containment root. Left unset, the root is `docs_dir`.
         ("include_root", config_options.Type(str, default=None)),
+        # Off by default, the Carve 0.2 default: `=html` blocks and spans are
+        # escaped unless the site's own authors write every page.
+        ("raw_html", config_options.Type(bool, default=False)),
     )
 
     #: Resolved in ``on_config`` and reused for every page. ``None`` means
@@ -251,7 +385,7 @@ class CarvePlugin(BasePlugin):
         try:
             convert_carve("", extensions=names, extension_options=options)
         except (TypeError, ValueError) as error:
-            raise ValidationError(f"extensions: {error}") from error
+            raise ValidationError(f"extensions: {_user_spelling(str(error), options)}") from error
         return names, options
 
     def _split_extensions(
@@ -274,7 +408,7 @@ class CarvePlugin(BasePlugin):
         configured = self.config["include_root"]
         root = configured if configured else os.path.abspath(config["docs_dir"])
         try:
-            carve.render_with_includes("", root)
+            carve.render("", {"includes": {"root": root}})
         except ValueError as error:
             raise ValidationError(f"include_root: {error}") from error
         return root
@@ -395,15 +529,17 @@ class CarvePlugin(BasePlugin):
                 extensions=extensions,
                 symbols=self._symbols,
                 extension_options=options,
+                raw_html=self.config["raw_html"],
             )
 
         result = convert_carve_with_includes(
             markdown,
             self._include_root,
-            os.path.relpath(abs_src_path, self._include_root),
+            os.path.relpath(abs_src_path, self._include_root).replace(os.sep, "/"),
             extensions=extensions,
             symbols=self._symbols,
             extension_options=options,
+            raw_html=self.config["raw_html"],
         )
         self._report(result, src_uri)
         return result["output"]
@@ -421,37 +557,38 @@ class CarvePlugin(BasePlugin):
         that stays literal is left to ``_report``, which already warns about
         it from the render, so it is not reported twice.
         """
-        if source_path is None:
-            findings = carve.lint(source, extensions=extensions)
-        else:
-            findings = carve.lint(
-                source,
-                extensions=extensions,
-                include_root=self._include_root,
-                source_path=source_path,
-            )
-        for warning in findings:
+        options: Dict[str, Any] = {}
+        resolved = engine_extensions(extensions)
+        if resolved:
+            options["extensions"] = resolved
+        if source_path is not None:
+            source_path = source_path.replace(os.sep, "/")
+            options["includes"] = {"root": self._include_root, "file": source_path}
+        for warning in carve.lint(source, options)["diagnostics"]:
             origin = warning.get("file")
-            if source_path is not None and warning["rule"].startswith("include-"):
+            if source_path is not None and warning["code"].startswith("include-"):
                 continue
-            position = f"{warning['line']}:{warning['column']}"
+            text = source
             if origin and origin != source_path:
-                sites = ", ".join(
-                    f"{site['file']}:{site['line']}:{site['column']}"
-                    for site in warning["includedBy"]
-                )
+                with open(
+                    os.path.join(self._include_root, origin), encoding="utf-8"
+                ) as handle:
+                    text = handle.read()
+            offset = warning.get("range", {}).get("startOffset", 0)
+            line, column = position(text, offset)
+            if text is not source:
                 log.warning(
-                    "%s: %s:%s: %s: %s (included at %s)",
+                    "%s: %s:%d:%d: %s: %s",
                     src_uri,
                     origin,
-                    position,
-                    warning["rule"],
+                    line,
+                    column,
+                    warning["code"],
                     warning["message"],
-                    sites,
                 )
                 continue
             log.warning(
-                "%s:%s: %s: %s", src_uri, position, warning["rule"], warning["message"]
+                "%s:%d:%d: %s: %s", src_uri, line, column, warning["code"], warning["message"]
             )
 
     def _report(self, result: Dict[str, Any], src_uri: str) -> None:
@@ -463,14 +600,6 @@ class CarvePlugin(BasePlugin):
         suppressed = result["suppressed_warnings"]
         if suppressed:
             log.warning("%s: %d further include warnings suppressed", src_uri, suppressed)
-        # The engine reports a containment denial and a missing file as one
-        # warning so a page cannot probe the filesystem (spec I7). The class
-        # that was collapsed is on the dependency, for the build's own log.
-        for dependency in result["dependencies"]:
-            if dependency["denial"]:
-                log.info(
-                    "%s: include %s: %s", src_uri, dependency["id"], dependency["denial"]
-                )
 
     def on_serve(self, server, *, config, builder):
         """Rebuild when anything under the containment root changes.
