@@ -92,7 +92,7 @@ The names this plugin also accepts from 0.1 map to them, in either spelling
 | `list-table` | `carve.listTable` |
 | `math-block` | `carve.mathBlock` |
 | `fenced-render` | `carve.fencedRender.mermaid` |
-| `fenced-render-<word>` | `carve.fencedRender.<word>` (`abc`, `chart`, `d2`, `graphviz`, `plantuml`, `vega-lite`, `wavedrom`) |
+| `fenced-render-<word>` | `carve.fencedRender.<word>` (`abc`, `chart`, `d2`, `graphviz`, `plantuml`, `vega-lite`, `wavedrom`); `graphviz` also claims `dot` and `plantuml` also `puml`, as in 0.1 |
 | `semantic-span` | `carve.semanticSpan` |
 | `smart-quotes` | `carve.smartQuotes` |
 | `color-swatch` | `carve.colorSwatch` |
