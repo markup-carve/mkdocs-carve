@@ -17,7 +17,12 @@ from mkdocs_carve.plugin import CarvePlugin, split_extensions
 UNATTACHED = "para\n\n{#id .cls}\n"
 
 #: The Carve 0.2 engine cannot register extensions yet.
-EXT_GAP = "0.1 extension behavior awaits markup-carve/carve-py#130 and markup-carve/carve-rs#4342"
+PERMALINK_GAP = "the 0.2 engine has no heading permalinks yet (markup-carve/carve-rs#4476)"
+OPTIONS_GAP = "the 0.2 Python binding takes no extension options (markup-carve/carve-py#142)"
+LINT_SHAPE_GAP = (
+    "0.1 carve.lint(source, extensions=) call shape; 0.2 reads extensions from the "
+    "options (test_lint_receives_the_engine_extensions)"
+)
 
 
 def _plugin(**options):
@@ -65,7 +70,7 @@ def test_lint_never_touches_markdown_pages(caplog):
 
 
 def test_lint_reads_the_configured_extensions(monkeypatch):
-    pytest.skip(EXT_GAP)
+    pytest.skip(LINT_SHAPE_GAP)
     import carve
 
     seen = []
@@ -137,7 +142,7 @@ def test_a_malformed_entry_is_a_configuration_error(entry):
 
 
 def test_wikilink_options_reach_the_engine():
-    pytest.skip(EXT_GAP)
+    pytest.skip(OPTIONS_GAP)
     plugin = _plugin(
         extensions=[{"wikilinks": {"css_class": "wl", "new_window": True}}]
     )
@@ -147,7 +152,7 @@ def test_wikilink_options_reach_the_engine():
 
 
 def test_options_on_the_default_extension_change_its_output():
-    pytest.skip(EXT_GAP)
+    pytest.skip(PERMALINK_GAP)
     plugin = _plugin(extensions=[{"heading_permalinks": {"symbol": "#"}}])
     out = _render(plugin, "# Hi\n")
     assert ">#</a>" in out
@@ -155,7 +160,6 @@ def test_options_on_the_default_extension_change_its_output():
 
 
 def test_an_unknown_option_is_refused_before_any_page():
-    pytest.skip(EXT_GAP)
     plugin = CarvePlugin()
     plugin.load_config({"extensions": [{"wikilinks": {"url_template": "/w/{}"}}]})
     with pytest.raises(ValidationError, match="url_template"):
@@ -170,7 +174,7 @@ def test_an_unknown_extension_name_is_refused_before_any_page():
 
 
 def test_options_reach_the_engine_on_the_include_path(tmp_path):
-    pytest.skip(EXT_GAP)
+    pytest.skip(OPTIONS_GAP)
     docs = tmp_path / "docs"
     docs.mkdir()
     (docs / "frag.crv").write_text("[[Foo Bar]]\n", encoding="utf-8")
@@ -191,7 +195,6 @@ def test_options_reach_the_engine_on_the_include_path(tmp_path):
 
 
 def test_an_option_of_the_wrong_type_names_the_option_not_the_engine():
-    pytest.skip(EXT_GAP)
     plugin = CarvePlugin()
     plugin.load_config({"extensions": [{"wikilinks": {"new_window": "false"}}]})
     with pytest.raises(ValidationError) as caught:
@@ -251,4 +254,72 @@ def test_a_configured_extension_is_refused_until_the_engine_has_it():
     plugin = CarvePlugin()
     plugin.load_config({"extensions": ["heading_permalinks"]})
     with pytest.raises(ValidationError, match="not a standard extension"):
+        plugin.on_config({"docs_dir": os.getcwd()})
+
+
+# --- 0.2 standard extensions -----------------------------------------------
+
+DETAILS = "::: details\nBody\n:::\n"
+
+
+def test_a_standard_extension_renders_with_its_standard_renderer():
+    out = _render(_plugin(extensions=["carve.details"]), DETAILS)
+    assert "<details>" in out
+
+
+@pytest.mark.parametrize("name", ["details", "math_block", "fenced-render"])
+def test_a_0_1_name_reads_as_its_0_2_extension(name):
+    from mkdocs_carve.plugin import engine_extensions
+
+    assert engine_extensions([name]) == {
+        "details": ["carve.details"],
+        "math_block": ["carve.mathBlock"],
+        "fenced-render": ["carve.fencedRender.mermaid"],
+    }[name]
+
+
+def _include_page(tmp_path, page_source):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "frag.crv").write_text(DETAILS, encoding="utf-8")
+    page_path = docs / "page.crv"
+    page_path.write_text(page_source, encoding="utf-8")
+    plugin = CarvePlugin()
+    plugin.load_config({"includes": True, "extensions": ["details"]})
+    plugin.on_config({"docs_dir": str(docs)})
+    page = SimpleNamespace(
+        file=SimpleNamespace(src_uri="page.crv", abs_src_path=str(page_path))
+    )
+    return plugin.on_page_markdown(page_source, page=page, config={}, files=None)
+
+
+def test_the_extension_set_reaches_the_include_path(tmp_path):
+    out = _include_page(tmp_path, DETAILS + "\n{{ frag.crv }}\n")
+    assert out.count("<details>") == 2
+
+
+def test_the_extension_set_reaches_an_included_page_alone(tmp_path):
+    pytest.skip("markup-carve/carve-rs#4481")
+    assert "<details>" in _include_page(tmp_path, "{{ frag.crv }}\n")
+
+
+def test_lint_receives_the_engine_extensions(monkeypatch):
+    import carve
+
+    seen = []
+    real = carve.lint
+
+    def spy(source, options=None):
+        seen.append((options or {}).get("extensions"))
+        return real(source, options)
+
+    monkeypatch.setattr(carve, "lint", spy)
+    _render(_plugin(lint=True, extensions=["details"]), "text\n")
+    assert seen == [["carve.details"]]
+
+
+def test_a_pending_0_1_extension_names_its_ticket():
+    plugin = CarvePlugin()
+    plugin.load_config({"extensions": ["autolink"]})
+    with pytest.raises(ValidationError, match="carve-rs#4476"):
         plugin.on_config({"docs_dir": os.getcwd()})

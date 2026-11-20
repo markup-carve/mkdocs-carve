@@ -1,8 +1,8 @@
 site_name: mkdocs-carve example
 plugins:
   - carve:
-      # heading_permalinks comes back once the Carve 0.2 engine can register
-      # extensions (markup-carve/carve-py#130).
+      # heading_permalinks comes back once the Carve 0.2 engine has it
+      # (markup-carve/carve-rs#4476).
       extensions: []
       # `:smile:` resolves through the same emoji database this site's
       # Markdown pages use, so the two page types cannot drift apart.

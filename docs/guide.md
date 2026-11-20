@@ -57,7 +57,7 @@ This homepage is written in *Carve* (note: `*bold*` is strong,
 
 | Option       | Type                | Default                  | Description |
 |--------------|---------------------|--------------------------|-------------|
-| `extensions` | list of names or `{name: options}` | `[]` | Carve extensions enabled for every Carve page, each optionally with its options. The Carve 0.2 Python binding cannot register host callbacks or transforms yet ([carve-py#130](https://github.com/markup-carve/carve-py/issues/130)), so the old 0.1 extension names are configuration errors for now; 0.1 enabled `heading_permalinks` by default. See [Extension options](#extension-options). |
+| `extensions` | list of names or `{name: options}` | `[]` | Carve 0.2 standard extensions enabled for every Carve page, each with its standard renderer. A 0.1 name is read as its 0.2 counterpart. 0.1 enabled `heading_permalinks` by default; the 0.2 engine has no heading permalinks yet. See [Extensions](#extensions). |
 | `raw_html`   | bool                | `false`                  | Emit `=html` blocks and spans verbatim. Carve 0.2 escapes them by default; turn it on only when the site's own authors write every page. |
 | `lint`       | bool                | `false`                  | Report lint findings on Carve pages as build warnings, so `mkdocs build --strict` fails on them. See [Lint](#lint). |
 | `emoji`      | `none` \| `unicode` \| `twemoji` | `none` | Resolve `:smile:` and friends through the emoji database your Markdown pages already use. See [Symbols and emoji](#symbols-and-emoji). |
@@ -65,44 +65,60 @@ This homepage is written in *Carve* (note: `*bold*` is strong,
 | `includes`   | bool                | `false`                  | Expand `{{ path }}` includes for file-backed pages. Off leaves a directive literal. See [Includes](#includes). |
 | `include_root` | absolute path     | `docs_dir`               | The containment root includes resolve within. Must be absolute; a relative value is refused, not resolved. |
 
-Once the engine can register them, enabling Carve extensions looks like this:
+### Extensions
+
+`extensions` takes the engine's 0.2 standard extension names:
 
 ```yaml
 plugins:
   - carve:
       extensions:
-        - heading_permalinks
-        - math_block
-        - list_table
+        - carve.details
+        - carve.mathBlock
+        - carve.listTable
+        - carve.fencedRender.mermaid
 ```
 
-Available extension names come from the installed Carve engine, so ask it rather
-than trusting a list in a README that cannot know which engine build you have:
+The names this plugin also accepts from 0.1 map to them, in either spelling
+(`math_block` or `math-block`):
 
-```bash
-python -c "import carve; print(carve.extensions())"
-```
+| 0.1 name | 0.2 extension |
+|---|---|
+| `details` | `carve.details` |
+| `spoiler` | `carve.spoiler`, `carve.spoilerBlock` |
+| `tabs` | `carve.tabs` |
+| `code-group` | `carve.codeGroup` |
+| `code-callouts` | `carve.codeCallouts` |
+| `list-table` | `carve.listTable` |
+| `math-block` | `carve.mathBlock` |
+| `fenced-render` | `carve.fencedRender.mermaid` |
+| `fenced-render-<word>` | `carve.fencedRender.<word>` (`abc`, `chart`, `d2`, `graphviz`, `plantuml`, `vega-lite`, `wavedrom`) |
+| `semantic-span` | `carve.semanticSpan` |
+| `smart-quotes` | `carve.smartQuotes` |
+| `color-swatch` | `carve.colorSwatch` |
+| `wikilinks` | `carve.wiki` |
+| `citations` | `carve.references` |
+| `glossary` | `carve.glossary` |
+| `index` | `carve.index` |
+| `img-fence` | `carve.imgFence.img`, `carve.imgFence.image` |
+| `tab-normalize` | `carve.tabNormalize` |
+
+The 0.2 engine has no `heading-permalinks`, `heading-numbers`,
+`heading-level-shift`, `heading-reference`, `table-of-contents`, `toc`,
+`external-links` or `autolink` yet
+([carve-rs#4476](https://github.com/markup-carve/carve-rs/issues/4476)); naming
+one is a configuration error. So is an unknown name.
+
+The extensions reach the page render, the include path and the lint pass. In an
+included file, an extension only claims its construct when the including page
+uses that extension too ([carve-rs#4481](https://github.com/markup-carve/carve-rs/issues/4481)).
 
 ### Extension options
 
 An entry can also be a mapping from an extension name to its options, the same
-shape `markdown_extensions` uses:
-
-```yaml
-plugins:
-  - carve:
-      extensions:
-        - heading_permalinks:
-            symbol: "#"
-        - wikilinks:
-            css_class: wiki
-            new_window: true
-        - math_block
-```
-
-The options go to the engine as written. An unknown extension or option is a
-configuration error when the build starts, not a failure on the first page that
-uses it. The error names the options the extension accepts.
+shape `markdown_extensions` uses. The Carve 0.2 Python binding enables a standard
+extension by name only, so options are a configuration error when the build
+starts ([carve-py#142](https://github.com/markup-carve/carve-py/issues/142)).
 
 ### Lint
 
