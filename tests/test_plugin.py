@@ -19,7 +19,7 @@ from mkdocs.config.base import ValidationError
 from mkdocs.structure.files import File, Files
 
 #: The Carve 0.2 engine cannot register extensions yet.
-EXT_GAP = "0.1 extension behavior awaits markup-carve/carve-py#130 and markup-carve/carve-rs#4342"
+PERMALINK_GAP = "the 0.2 engine has no heading permalinks yet (markup-carve/carve-rs#4476)"
 
 from mkdocs_carve.plugin import (
     CARVE_SUFFIXES,
@@ -154,7 +154,7 @@ def test_convert_carve_table():
 
 
 def test_extension_passthrough_changes_output():
-    pytest.skip(EXT_GAP)
+    pytest.skip(PERMALINK_GAP)
     src = "# Hello World\n\ntext\n"
     plain = convert_carve(src, extensions=None)
     with_perma = convert_carve(src, extensions=["heading_permalinks"])
@@ -163,7 +163,7 @@ def test_extension_passthrough_changes_output():
 
 
 def test_plugin_default_extensions_applied(dirs):
-    pytest.skip(EXT_GAP)
+    pytest.skip(PERMALINK_GAP)
     docs, site = dirs
     f = _make_file(
         "index.crv", docs, site, use_directory_urls=True, content="# Hi There\n\ntext"
@@ -177,7 +177,6 @@ def test_plugin_default_extensions_applied(dirs):
 
 
 def test_plugin_custom_extensions_config(dirs):
-    pytest.skip(EXT_GAP)
     docs, site = dirs
     f = _make_file(
         "m.crv", docs, site, use_directory_urls=True, content="```math\nx^2\n```\n"
