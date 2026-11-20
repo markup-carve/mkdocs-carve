@@ -57,7 +57,7 @@ This homepage is written in *Carve* (note: `*bold*` is strong,
 
 | Option       | Type                | Default                  | Description |
 |--------------|---------------------|--------------------------|-------------|
-| `extensions` | list of names or `{name: options}` | `[]` | Carve 0.2 standard extensions enabled for every Carve page, each with its standard renderer. A 0.1 name is read as its 0.2 counterpart. 0.1 enabled `heading_permalinks` by default; the 0.2 engine has no heading permalinks yet. See [Extensions](#extensions). |
+| `extensions` | list of names or `{name: options}` | `["heading_permalinks"]` | Carve 0.2 standard extensions enabled for every Carve page, each with its standard renderer and optionally with its options. A 0.1 name is read as its 0.2 counterpart. Set to `[]` to use the core renderer only. See [Extensions](#extensions). |
 | `raw_html`   | bool                | `false`                  | Emit `=html` blocks and spans verbatim. Carve 0.2 escapes them by default; turn it on only when the site's own authors write every page. |
 | `lint`       | bool                | `false`                  | Report lint findings on Carve pages as build warnings, so `mkdocs build --strict` fails on them. See [Lint](#lint). |
 | `emoji`      | `none` \| `unicode` \| `twemoji` | `none` | Resolve `:smile:` and friends through the emoji database your Markdown pages already use. See [Symbols and emoji](#symbols-and-emoji). |
@@ -102,12 +102,17 @@ The names this plugin also accepts from 0.1 map to them, in either spelling
 | `index` | `carve.index` |
 | `img-fence` | `carve.imgFence.img`, `carve.imgFence.image` |
 | `tab-normalize` | `carve.tabNormalize` |
+| `heading-permalinks` | `carve.headingPermalinks` |
+| `heading-numbers` | `carve.headingNumbers` |
+| `heading-level-shift` | `carve.headingLevelShift` |
+| `heading-reference` | `carve.headingReference` |
+| `table-of-contents`, `toc` | `carve.toc` |
+| `external-links` | `carve.externalLinks` |
+| `autolink` | `carve.autolink` |
+| `link-policy` | `carve.linkPolicy` |
 
-The 0.2 engine has no `heading-permalinks`, `heading-numbers`,
-`heading-level-shift`, `heading-reference`, `table-of-contents`, `toc`,
-`external-links` or `autolink` yet
-([carve-rs#4476](https://github.com/markup-carve/carve-rs/issues/4476)); naming
-one is a configuration error. So is an unknown name.
+`carve.tocPlacement` has no 0.1 name; give it as written. An unknown name is a
+configuration error.
 
 The extensions reach the page render, the include path and the lint pass. In an
 included file, an extension only claims its construct when the including page
@@ -116,9 +121,29 @@ uses that extension too ([carve-rs#4481](https://github.com/markup-carve/carve-r
 ### Extension options
 
 An entry can also be a mapping from an extension name to its options, the same
-shape `markdown_extensions` uses. The Carve 0.2 Python binding enables a standard
-extension by name only, so options are a configuration error when the build
-starts ([carve-py#142](https://github.com/markup-carve/carve-py/issues/142)).
+shape `markdown_extensions` uses:
+
+```yaml
+plugins:
+  - carve:
+      extensions:
+        - heading_permalinks
+        - wikilinks:
+            css_class: wiki
+            new_window: true
+        - smart_quotes:
+            locale: de
+```
+
+The options reach the engine as written, in snake case or camel case. An
+unknown option, or a value of the wrong type, is a configuration error when the
+build starts, and the error names the option. The lint pass receives the names
+only.
+
+The Carve 0.2 Python binding takes no options for the navigation extensions yet
+(heading permalinks, table of contents and the rest), so an option on one of
+them is a configuration error
+([carve-py#145](https://github.com/markup-carve/carve-py/issues/145)).
 
 ### Lint
 

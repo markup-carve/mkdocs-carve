@@ -16,9 +16,8 @@ from mkdocs_carve.plugin import CarvePlugin, split_extensions
 
 UNATTACHED = "para\n\n{#id .cls}\n"
 
-#: The Carve 0.2 engine cannot register extensions yet.
-PERMALINK_GAP = "the 0.2 engine has no heading permalinks yet (markup-carve/carve-rs#4476)"
-OPTIONS_GAP = "the 0.2 Python binding takes no extension options (markup-carve/carve-py#142)"
+#: The 0.2 Python binding takes no options for the navigation extensions.
+NAV_OPTIONS_GAP = "carve-py next2 refuses navigation extension options (markup-carve/carve-py#145)"
 LINT_SHAPE_GAP = (
     "0.1 carve.lint(source, extensions=) call shape; 0.2 reads extensions from the "
     "options (test_lint_receives_the_engine_extensions)"
@@ -142,17 +141,16 @@ def test_a_malformed_entry_is_a_configuration_error(entry):
 
 
 def test_wikilink_options_reach_the_engine():
-    pytest.skip(OPTIONS_GAP)
     plugin = _plugin(
         extensions=[{"wikilinks": {"css_class": "wl", "new_window": True}}]
     )
-    out = _render(plugin, "[[Foo Bar]]\n")
+    out = _render(plugin, ":wiki[Foo Bar]\n")
     assert 'class="wl"' in out
     assert 'target="_blank"' in out
 
 
 def test_options_on_the_default_extension_change_its_output():
-    pytest.skip(PERMALINK_GAP)
+    pytest.skip(NAV_OPTIONS_GAP)
     plugin = _plugin(extensions=[{"heading_permalinks": {"symbol": "#"}}])
     out = _render(plugin, "# Hi\n")
     assert ">#</a>" in out
@@ -166,6 +164,14 @@ def test_an_unknown_option_is_refused_before_any_page():
         plugin.on_config({"docs_dir": os.getcwd()})
 
 
+@pytest.mark.parametrize("key", [1, "bad_[", "bad_\\"])
+def test_a_malformed_option_key_stays_a_configuration_error(key):
+    plugin = CarvePlugin()
+    plugin.load_config({"extensions": [{"wikilinks": {key: True}}]})
+    with pytest.raises(ValidationError):
+        plugin.on_config({"docs_dir": os.getcwd()})
+
+
 def test_an_unknown_extension_name_is_refused_before_any_page():
     plugin = CarvePlugin()
     plugin.load_config({"extensions": ["no_such_extension"]})
@@ -174,10 +180,9 @@ def test_an_unknown_extension_name_is_refused_before_any_page():
 
 
 def test_options_reach_the_engine_on_the_include_path(tmp_path):
-    pytest.skip(OPTIONS_GAP)
     docs = tmp_path / "docs"
     docs.mkdir()
-    (docs / "frag.crv").write_text("[[Foo Bar]]\n", encoding="utf-8")
+    (docs / "frag.crv").write_text(":wiki[Foo Bar]\n", encoding="utf-8")
     page_path = docs / "page.crv"
     page_path.write_text("{{ frag.crv }}\n", encoding="utf-8")
     plugin = CarvePlugin()
@@ -250,13 +255,6 @@ def test_included_files_are_not_linted_while_includes_are_off(tmp_path, caplog):
     assert not [r for r in caplog.records if "frag.crv:" in r.getMessage()]
 
 
-def test_a_configured_extension_is_refused_until_the_engine_has_it():
-    plugin = CarvePlugin()
-    plugin.load_config({"extensions": ["heading_permalinks"]})
-    with pytest.raises(ValidationError, match="not a standard extension"):
-        plugin.on_config({"docs_dir": os.getcwd()})
-
-
 # --- 0.2 standard extensions -----------------------------------------------
 
 DETAILS = "::: details\nBody\n:::\n"
@@ -318,11 +316,23 @@ def test_lint_receives_the_engine_extensions(monkeypatch):
     assert seen == [["carve.details"]]
 
 
-def test_a_pending_0_1_extension_names_its_ticket():
-    plugin = CarvePlugin()
-    plugin.load_config({"extensions": ["autolink"]})
-    with pytest.raises(ValidationError, match="carve-rs#4476"):
-        plugin.on_config({"docs_dir": os.getcwd()})
+@pytest.mark.parametrize(
+    "name,source,visible",
+    [
+        ("heading_permalinks", "# Hi\n", 'class="permalink"'),
+        ("heading-numbers", "# Hi\n", '<span class="section-number">1</span>'),
+        ("heading_level_shift", "# Hi\n", "<h2>Hi</h2>"),
+        ("table_of_contents", "# Hi\n", '<nav class="toc"'),
+        ("toc", "# Hi\n", '<nav class="toc"'),
+        ("external_links", "[x](https://example.org)\n", 'target="_blank"'),
+        ("autolink", "See https://example.org\n", '<a href="https://example.org">'),
+        ("carve.headingReference", "# Hi\n", "<h1>Hi</h1>"),
+        ("link_policy", "[x](https://example.org)\n", '<a href="https://example.org">'),
+    ],
+)
+def test_each_navigation_extension_reaches_the_engine(name, source, visible):
+    out = _render(_plugin(extensions=[name]), source)
+    assert visible in out
 
 
 def test_the_graphviz_name_claims_the_dot_fence_as_in_0_1():

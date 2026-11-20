@@ -50,6 +50,7 @@ from __future__ import annotations
 import json
 import os
 import posixpath
+import re
 from typing import Any, Dict, Optional
 
 import carve
@@ -64,18 +65,19 @@ log = get_plugin_logger(__name__)
 #: Source extensions this plugin claims as Carve documentation pages.
 CARVE_SUFFIXES = (".crv",)
 
-#: Extensions enabled by default. 0.1 enabled ``heading_permalinks`` here; the
-#: 0.2 engine has no heading permalinks yet (markup-carve/carve-rs#4476).
-DEFAULT_EXTENSIONS: list = []
+#: Extensions enabled by default.
+DEFAULT_EXTENSIONS: list = ["heading_permalinks"]
 
 #: The 0.2 standard extensions each 0.1 extension name stands for. A name
 #: missing here and not starting with ``carve.`` reaches the engine as written.
 LEGACY_EXTENSIONS: Dict[str, list] = {
+    "autolink": ["carve.autolink"],
     "citations": ["carve.references"],
     "code-callouts": ["carve.codeCallouts"],
     "code-group": ["carve.codeGroup"],
     "color-swatch": ["carve.colorSwatch"],
     "details": ["carve.details"],
+    "external-links": ["carve.externalLinks"],
     "fenced-render": ["carve.fencedRender.mermaid"],
     "fenced-render-abc": ["carve.fencedRender.abc"],
     "fenced-render-chart": ["carve.fencedRender.chart"],
@@ -85,32 +87,34 @@ LEGACY_EXTENSIONS: Dict[str, list] = {
     "fenced-render-vega-lite": ["carve.fencedRender.vega-lite"],
     "fenced-render-wavedrom": ["carve.fencedRender.wavedrom"],
     "glossary": ["carve.glossary"],
+    "heading-level-shift": ["carve.headingLevelShift"],
+    "heading-numbers": ["carve.headingNumbers"],
+    "heading-permalinks": ["carve.headingPermalinks"],
+    "heading-reference": ["carve.headingReference"],
     "img-fence": ["carve.imgFence.img", "carve.imgFence.image"],
     "index": ["carve.index"],
+    "link-policy": ["carve.linkPolicy"],
     "list-table": ["carve.listTable"],
     "math-block": ["carve.mathBlock"],
     "semantic-span": ["carve.semanticSpan"],
     "smart-quotes": ["carve.smartQuotes"],
     "spoiler": ["carve.spoiler", "carve.spoilerBlock"],
     "tab-normalize": ["carve.tabNormalize"],
+    "table-of-contents": ["carve.toc"],
     "tabs": ["carve.tabs"],
+    "toc": ["carve.toc"],
     "wikilinks": ["carve.wiki"],
-}
-
-#: 0.1 extensions the 0.2 engine does not have yet.
-PENDING_EXTENSIONS = {
-    "autolink",
-    "external-links",
-    "heading-level-shift",
-    "heading-numbers",
-    "heading-permalinks",
-    "heading-reference",
-    "table-of-contents",
-    "toc",
 }
 
 #: Standard extensions without a standard renderer in the engine.
 _NO_RENDERER = {"carve.cite"}
+
+
+def _targets(name: str) -> list:
+    """The 0.2 standard extension names one configured ``name`` stands for."""
+    if name.startswith("carve."):
+        return [name]
+    return LEGACY_EXTENSIONS.get(name.replace("_", "-"), [name])
 
 
 def engine_extensions(names: Optional[list]) -> list:
@@ -120,35 +124,43 @@ def engine_extensions(names: Optional[list]) -> list:
     """
     resolved: list = []
     for name in names or []:
-        if name.startswith("carve."):
-            targets = [name]
-        else:
-            key = name.replace("_", "-")
-            if key in PENDING_EXTENSIONS:
-                raise ValueError(
-                    f"{name} is not a standard extension of the 0.2 engine yet "
-                    "(markup-carve/carve-rs#4476)"
-                )
-            targets = LEGACY_EXTENSIONS.get(key, [name])
-        resolved.extend(t for t in targets if t not in resolved)
+        resolved.extend(t for t in _targets(name) if t not in resolved)
     return resolved
 
 
-def _extension_options(names: list) -> Dict[str, Any]:
-    """The engine options that enable ``names`` with their standard renderers."""
-    if not names:
+def _entries(
+    names: Optional[list], options: Optional[Dict[str, Dict[str, Any]]]
+) -> list:
+    """The engine ``extensions`` list: a name, or a configured entry with options."""
+    configured: Dict[str, Dict[str, Any]] = {}
+    for name, values in (options or {}).items():
+        for target in _targets(name):
+            configured[target] = values
+    return [
+        {"name": n, "options": configured[n]} if n in configured else n
+        for n in engine_extensions(names)
+    ]
+
+
+def _extension_options(entries: list) -> Dict[str, Any]:
+    """The engine options that enable ``entries`` with their standard renderers."""
+    if not entries:
         return {}
+    names = [e if isinstance(e, str) else e["name"] for e in entries]
     return {
-        "extensions": names,
+        "extensions": entries,
         "renderers": {n: "standard" for n in names if n not in _NO_RENDERER},
     }
 
 
 def _options(
-    symbols: Optional[Dict[str, str]], raw_html: bool, extensions: Optional[list] = None
+    symbols: Optional[Dict[str, str]],
+    raw_html: bool,
+    extensions: Optional[list] = None,
+    extension_options: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """The Carve 0.2 option map for a render."""
-    options: Dict[str, Any] = _extension_options(engine_extensions(extensions))
+    options: Dict[str, Any] = _extension_options(_entries(extensions, extension_options))
     if symbols is not None:
         options["symbols"] = symbols
     if raw_html:
@@ -167,8 +179,8 @@ def convert_carve(
 
     ``extensions`` is the list of carve extension names to enable, each with
     its standard renderer. ``None`` means the core renderer. A 0.1 name is read
-    as its 0.2 counterpart (``LEGACY_EXTENSIONS``). The 0.2 binding takes no
-    per-extension options, so a non-empty ``extension_options`` is refused.
+    as its 0.2 counterpart (``LEGACY_EXTENSIONS``). ``extension_options`` maps a
+    configured name to its options, which reach the engine as written.
 
     ``symbols`` maps a `:name:` symbol to what it renders as. ``None`` leaves
     the engine's own default behavior, under which every `:name:` stays
@@ -178,17 +190,8 @@ def convert_carve(
     ``raw_html`` lets `=html` blocks and spans through verbatim; the 0.2
     default escapes them.
     """
-    _refuse_extension_options(extension_options)
-    return carve.render(source, _options(symbols, raw_html, extensions))["html"]
-
-
-def _refuse_extension_options(options: Optional[Dict[str, Dict[str, Any]]]) -> None:
-    if options:
-        name, values = next(iter(options.items()))
-        raise ValueError(
-            f"{name}: options {sorted(values)} are not supported: the Carve 0.2 "
-            "Python binding enables a standard extension by name only"
-        )
+    options = _options(symbols, raw_html, extensions, extension_options)
+    return carve.render(source, options)["html"]
 
 
 def convert_carve_with_includes(
@@ -210,8 +213,7 @@ def convert_carve_with_includes(
     Returns ``output`` (the HTML), ``warnings`` (the engine's include
     diagnostics) and ``suppressed_warnings``.
     """
-    _refuse_extension_options(extension_options)
-    options = _options(symbols, raw_html, extensions)
+    options = _options(symbols, raw_html, extensions, extension_options)
     options["includes"] = {"root": include_root, "file": source_path}
     result = carve.render(source, options, diagnostics=True)
     warnings = [
@@ -224,6 +226,22 @@ def convert_carve_with_includes(
         "warnings": warnings,
         "suppressed_warnings": result.get("suppressedDiagnostics", 0),
     }
+
+
+def _user_spelling(message: str, options: Optional[Dict[str, Dict[str, Any]]]) -> str:
+    """``message`` with each engine option name in the spelling ``mkdocs.yml`` used.
+
+    The engine reports ``newWindow`` for a ``new_window`` the site wrote.
+    """
+    for values in (options or {}).values():
+        for key in values:
+            if not isinstance(key, str):
+                continue
+            head, *rest = key.split("_")
+            camel = head + "".join(part.title() for part in rest)
+            if camel != key:
+                message = re.sub(rf"\b{re.escape(camel)}\b", lambda _: key, message)
+    return message
 
 
 def position(text: str, offset: int) -> tuple[int, int]:
@@ -367,7 +385,7 @@ class CarvePlugin(BasePlugin):
         try:
             convert_carve("", extensions=names, extension_options=options)
         except (TypeError, ValueError) as error:
-            raise ValidationError(f"extensions: {error}") from error
+            raise ValidationError(f"extensions: {_user_spelling(str(error), options)}") from error
         return names, options
 
     def _split_extensions(
