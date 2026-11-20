@@ -102,7 +102,7 @@ LEGACY_EXTENSIONS: Dict[str, list] = {
     "tab-normalize": ["carve.tabNormalize"],
     "table-of-contents": ["carve.toc"],
     "tabs": ["carve.tabs"],
-    "toc": ["carve.toc"],
+    "toc": ["carve.tocPlacement"],
     "wikilinks": ["carve.wiki"],
 }
 

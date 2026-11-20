@@ -106,13 +106,13 @@ The names this plugin also accepts from 0.1 map to them, in either spelling
 | `heading-numbers` | `carve.headingNumbers` |
 | `heading-level-shift` | `carve.headingLevelShift` |
 | `heading-reference` | `carve.headingReference` |
-| `table-of-contents`, `toc` | `carve.toc` |
+| `table-of-contents` | `carve.toc` (a table at the top of the page) |
+| `toc` | `carve.tocPlacement` (a table where a `::: toc` block stands) |
 | `external-links` | `carve.externalLinks` |
 | `autolink` | `carve.autolink` |
 | `link-policy` | `carve.linkPolicy` |
 
-`carve.tocPlacement` has no 0.1 name; give it as written. An unknown name is a
-configuration error.
+An unknown name is a configuration error.
 
 The extensions reach the page render, the include path and the lint pass. In an
 included file, an extension only claims its construct when the including page
