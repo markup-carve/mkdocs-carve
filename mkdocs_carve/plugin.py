@@ -235,10 +235,12 @@ def _user_spelling(message: str, options: Optional[Dict[str, Dict[str, Any]]]) -
     """
     for values in (options or {}).values():
         for key in values:
+            if not isinstance(key, str):
+                continue
             head, *rest = key.split("_")
             camel = head + "".join(part.title() for part in rest)
             if camel != key:
-                message = re.sub(rf"\b{camel}\b", key, message)
+                message = re.sub(rf"\b{re.escape(camel)}\b", lambda _: key, message)
     return message
 
 

@@ -164,6 +164,14 @@ def test_an_unknown_option_is_refused_before_any_page():
         plugin.on_config({"docs_dir": os.getcwd()})
 
 
+@pytest.mark.parametrize("key", [1, "bad_[", "bad_\\"])
+def test_a_malformed_option_key_stays_a_configuration_error(key):
+    plugin = CarvePlugin()
+    plugin.load_config({"extensions": [{"wikilinks": {key: True}}]})
+    with pytest.raises(ValidationError):
+        plugin.on_config({"docs_dir": os.getcwd()})
+
+
 def test_an_unknown_extension_name_is_refused_before_any_page():
     plugin = CarvePlugin()
     plugin.load_config({"extensions": ["no_such_extension"]})
