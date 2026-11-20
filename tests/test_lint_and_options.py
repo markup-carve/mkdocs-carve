@@ -323,3 +323,8 @@ def test_a_pending_0_1_extension_names_its_ticket():
     plugin.load_config({"extensions": ["autolink"]})
     with pytest.raises(ValidationError, match="carve-rs#4476"):
         plugin.on_config({"docs_dir": os.getcwd()})
+
+
+def test_the_graphviz_name_claims_the_dot_fence_as_in_0_1():
+    out = _render(_plugin(extensions=["fenced-render-graphviz"]), "``` dot\ndigraph{a->b}\n```\n")
+    assert '<pre class="graphviz"' in out
