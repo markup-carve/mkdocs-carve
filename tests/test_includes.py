@@ -9,8 +9,6 @@ from types import SimpleNamespace
 
 import pytest
 
-#: The Carve 0.2 engine cannot register extensions yet.
-PERMALINK_GAP = "the 0.2 engine has no heading permalinks yet (markup-carve/carve-rs#4476)"
 from mkdocs.config.base import ValidationError
 from mkdocs.structure.files import File
 
@@ -192,7 +190,6 @@ def test_the_symbol_map_reaches_an_included_child(site):
 
 
 def test_the_extension_set_reaches_an_included_child(site):
-    pytest.skip(PERMALINK_GAP)
     _write(os.path.join(site.docs, "sub", "frag.crv"), "# Child\n")
     plugin = _plugin(site, includes=True, extensions=["heading_permalinks"])
     html = _render(plugin, site, "index.crv", "{{ sub/frag.crv }}\n")
