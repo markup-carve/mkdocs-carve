@@ -7,8 +7,8 @@ pip install -e .[test]
 pytest
 ```
 
-On `next2` both `pyproject.toml` and `constraints-ci.txt` pin carve-lang to the
-same carve-py `next2` commit, and pip builds it from source (Rust needed). To
+On `main` both `pyproject.toml` and `constraints-ci.txt` pin carve-lang to the
+same carve-py `main` commit, and pip builds it from source (Rust needed). To
 reproduce what CI measured, install under the constraints file CI uses:
 
 ```bash

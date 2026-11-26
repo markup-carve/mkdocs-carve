@@ -12,7 +12,7 @@ coexist with `.md` pages in the same `docs/` tree.
 ## Installation notes
 
 The Carve engine (`carve-lang`, the PyO3 binding over carve-rs) is the
-unreleased Carve 0.2 binding on this branch, pinned to a carve-py `next2`
+unreleased Carve 0.2 binding on this branch, pinned to a carve-py `main`
 commit. pip builds it from source, so installing needs Rust 1.88 or newer.
 
 ## Usage

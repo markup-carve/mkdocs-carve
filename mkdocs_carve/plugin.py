@@ -40,7 +40,7 @@ Design notes
   resolver's own refusal of a relative root is what fires. Only the default,
   derived from ``docs_dir``, is absolutized here.
 
-* The engine is Carve 0.2 (carve-py ``next2``). Raw HTML is escaped unless the
+* The engine is Carve 0.2 (carve-py ``main``). Raw HTML is escaped unless the
   site sets ``raw_html``. Extensions are the engine's 0.2 standard
   extensions; a 0.1 name is read as its 0.2 counterpart.
 """
