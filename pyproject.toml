@@ -27,8 +27,8 @@ classifiers = [
 dependencies = [
     "mkdocs>=1.5",
     # carve-lang is the Carve engine (the PyO3 binding over carve-rs). On
-    # `next2` it is the unreleased Carve 0.2 binding, pinned to a carve-py
-    # `next2` commit and built from source (Rust and maturin are needed). A
+    # `main` it is the unreleased Carve 0.2 binding, pinned to a carve-py
+    # `main` commit and built from source (Rust and maturin are needed). A
     # direct-URL dependency cannot be published to PyPI, so this branch is not
     # releasable until carve-lang 0.2 is; the range comes back then.
     "carve-lang @ git+https://github.com/markup-carve/carve-py@8444f42cb4c2a73517be9781144f57d8fff5960d",
