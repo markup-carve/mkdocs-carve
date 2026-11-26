@@ -1,4 +1,4 @@
-# Guide Introduction
+= Guide Introduction
 
 A Carve page nested in a *subfolder* (`guide/`). This proves nested paths and
 nav entries pointing into folders resolve correctly.

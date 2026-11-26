@@ -7,10 +7,9 @@ pip install -e .[test]
 pytest
 ```
 
-That install resolves the Carve engine the way a user's install does: anywhere in
-the declared range, which today means whatever `carve-lang` PyPI serves as newest.
-To reproduce what CI measured instead, install under the same constraints file CI
-uses:
+On `next2` both `pyproject.toml` and `constraints-ci.txt` pin carve-lang to the
+same carve-py `next2` commit, and pip builds it from source (Rust needed). To
+reproduce what CI measured, install under the constraints file CI uses:
 
 ```bash
 pip install -e .[test] -c constraints-ci.txt

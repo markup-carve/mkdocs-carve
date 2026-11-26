@@ -106,7 +106,7 @@ def test_site_entries_alone_need_no_emoji_database():
 
 
 def test_a_mapped_symbol_renders_and_an_unmapped_one_stays_literal():
-    html = carve.to_html("A :smile: but not :nope:", symbols=build("unicode", None, _index))
+    html = carve.to_html("A :smile: but not :nope:", {"symbols": build("unicode", None, _index)})
     assert "\U0001f604" in html
     assert ":nope:" in html
 
@@ -126,7 +126,7 @@ def test_a_mapped_symbol_renders_and_an_unmapped_one_stays_literal():
     ],
 )
 def test_the_word_boundary_guard_still_holds(source, substituted):
-    html = carve.to_html(source, symbols={"smile": "SUBSTITUTED"})
+    html = carve.to_html(source, {"symbols": {"smile": "SUBSTITUTED"}})
     assert ("SUBSTITUTED" in html) is substituted
 
 
@@ -139,7 +139,7 @@ def test_a_mapped_value_is_emitted_raw():
     escaping, the change is noticed here rather than by a site whose symbols
     silently turned into visible markup.
     """
-    html = carve.to_html(":logo: x", symbols={"logo": "<img src='/l.svg'>"})
+    html = carve.to_html(":logo: x", {"symbols": {"logo": "<img src='/l.svg'>"}})
     assert "<img src='/l.svg'>" in html
     assert "&lt;img" not in html
 
