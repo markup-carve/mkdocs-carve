@@ -8,15 +8,20 @@ own.
 
 ## Unreleased
 
+## 0.2.0 - 2026-11-27
+
 ### Changed
 
 - Port to Carve 0.2: pages render and lint through the carve-py `next2` Carve
   0.2 binding, pinned by commit. Page HTML follows 0.2 (see the spec's
   `UPGRADING.md`).
 - Raw HTML is escaped by default. The new `raw_html` setting emits it verbatim.
-- `extensions` defaults to `[]`; `heading_permalinks` is no longer on by
-  default. A configured extension is a configuration error until the engine can
-  register extensions (markup-carve/carve-rs#4329).
+- `extensions` takes the 0.2 standard extension names (`carve.details`,
+  `carve.mathBlock`, `carve.toc`, ...) and maps the 0.1 names to them:
+  `fenced-render-graphviz` also claims `dot` fences, `plantuml` also `puml`, and
+  `toc` is the `::: toc` placement. Extensions reach the page render, included
+  pages and lint. `heading_permalinks` stays the default, and extension options
+  such as its `symbol` apply again (#50, #51, #52, #53, #54).
 - Include warnings name the cause (`include-not-found`, `include-outside-root`,
   ...) instead of one `include-unresolved`. Lint warnings for included files
   drop the "(included at ...)" suffix; without `includes`, lint reports each
